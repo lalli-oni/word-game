@@ -1,4 +1,3 @@
-import { writable } from 'svelte/store';
 import { type Scenario } from './scenarios';
 
 export type ConnectionType = 'initial' | 'letter' | 'synonym' | 'antonym' | 'anagram' | 'unknown';
@@ -26,90 +25,96 @@ export interface ValidationResult {
   diffCount?: number;
 }
 
-const initialState: GameState = {
-  startWord: 'COLD',
-  finishWord: 'WARM',
-  currentWord: 'COLD',
-  history: [{ word: 'COLD', type: 'initial', timestamp: Date.now() }],
-  isGameOver: false,
-  score: 0
+// Simple persistent cache for API results
+const API_CACHE_KEY = 'word_connection_api_cache';
+const getCache = () => JSON.parse(localStorage.getItem(API_CACHE_KEY) || '{}');
+const setCache = (word: string, data: any) => {
+    const cache = getCache();
+    cache[word.toLowerCase()] = { data, timestamp: Date.now() };
+    localStorage.setItem(API_CACHE_KEY, JSON.stringify(cache));
 };
 
-function createGame() {
-  const store = writable<GameState>(initialState);
-  const { subscribe, set, update } = store;
+export class GameEngine {
+  // Svelte 5 state runes
+  startWord = $state('COLD');
+  finishWord = $state('WARM');
+  currentWord = $state('COLD');
+  history = $state<Move[]>([{ word: 'COLD', type: 'initial', timestamp: Date.now() }]);
+  isGameOver = $state(false);
+  score = $state(0);
+  
+  // Local cache for the current turn's valid semantic moves
+  #validSemanticMoves = $state<{ synonyms: string[], antonyms: string[] }>({ synonyms: [], antonyms: [] });
 
-  return {
-    subscribe,
-    loadScenario: (scenario: Scenario) => {
-      set({
-        startWord: scenario.startWord.toUpperCase(),
-        finishWord: scenario.finishWord.toUpperCase(),
-        currentWord: scenario.startWord.toUpperCase(),
-        history: [{ word: scenario.startWord.toUpperCase(), type: 'initial', timestamp: Date.now() }],
-        isGameOver: false,
-        score: 0
-      });
-    },
-    reset: () => {
-      update(state => ({
-        ...state,
-        currentWord: state.startWord,
-        history: [{ word: state.startWord, type: 'initial', timestamp: Date.now() }],
-        isGameOver: false,
-        score: 0
-      }));
-    },
-    validateMove: async (guess: string): Promise<ValidationResult> => {
+  constructor() {
+      this.#refreshSemanticMoves(this.currentWord);
+  }
+
+  async #refreshSemanticMoves(word: string) {
+      const relations = await fetchRelations(word);
+      this.#validSemanticMoves = relations;
+  }
+
+  loadScenario(scenario: Scenario) {
+      const start = scenario.startWord.toUpperCase();
+      this.startWord = start;
+      this.finishWord = scenario.finishWord.toUpperCase();
+      this.currentWord = start;
+      this.history = [{ word: start, type: 'initial', timestamp: Date.now() }];
+      this.isGameOver = false;
+      this.score = 0;
+      this.#validSemanticMoves = { synonyms: [], antonyms: [] };
+      this.#refreshSemanticMoves(start);
+  }
+
+  reset() {
+      this.currentWord = this.startWord;
+      this.history = [{ word: this.startWord, type: 'initial', timestamp: Date.now() }];
+      this.isGameOver = false;
+      this.score = 0;
+      this.#refreshSemanticMoves(this.startWord);
+  }
+
+  async validateMove(guess: string): Promise<ValidationResult> {
       const word = guess.toUpperCase();
       if (!word || word.length < 2) return { isValid: false, type: 'unknown', errors: [] };
-
-      let currentState: GameState | undefined;
-      subscribe(s => currentState = s)();
-      if (!currentState || currentState.isGameOver) return { isValid: false, type: 'unknown', errors: ['Game is over'] };
+      if (this.isGameOver) return { isValid: false, type: 'unknown', errors: ['Game is over'] };
       
-      if (currentState.history.some(m => m.word === word)) {
+      if (this.history.some(m => m.word === word)) {
           return { isValid: false, type: 'unknown', errors: [`"${word}" has already been used.`] };
       }
 
-      const prevWord = currentState.currentWord;
+      const prevWord = this.currentWord;
       const errors: string[] = [];
-      
-      // 1. Check Morph (Single Letter Change)
       const diffCount = getLetterDifferences(prevWord, word);
+      
       if (diffCount === 1 && prevWord.length === word.length) {
           return { isValid: true, type: 'letter', errors: [] };
       }
 
-      // 2. Check Anagram
       if (isAnagram(prevWord, word)) {
           return { isValid: true, type: 'anagram', errors: [] };
       }
 
-      // 3. Check Dictionary & Relations (Asynchronous)
-      const relations = await fetchRelations(prevWord);
-      if (relations.synonyms.includes(word.toLowerCase())) {
+      if (this.#validSemanticMoves.synonyms.includes(word.toLowerCase())) {
           return { isValid: true, type: 'synonym', errors: [] };
       }
-      if (relations.antonyms.includes(word.toLowerCase())) {
+      if (this.#validSemanticMoves.antonyms.includes(word.toLowerCase())) {
           return { isValid: true, type: 'antonym', errors: [] };
       }
 
-      // --- Not valid, collect errors ---
-      
-      // Length check
       if (prevWord.length !== word.length) {
+          const exists = await checkWordExists(word);
+          if (!exists) errors.push(`"${word}" is not a valid English word.`);
           errors.push('Word length must match for a Morph or Anagram.');
       } else if (diffCount > 1) {
           errors.push(`A Morph only allows 1 letter change (you changed ${diffCount}).`);
       }
 
-      // Semantic check
       errors.push(`"${word}" is not a known synonym or antonym of "${prevWord}".`);
 
-      // Dictionary existence check
       const exists = await checkWordExists(word);
-      if (!exists) {
+      if (!exists && !errors.includes(`"${word}" is not a valid English word.`)) {
           errors.push(`"${word}" is not a valid English word.`);
       }
 
@@ -119,28 +124,28 @@ function createGame() {
           errors, 
           diffCount: prevWord.length === word.length ? diffCount : undefined 
       };
-    },
-    makeMove: async (guess: string) => {
+  }
+
+  async makeMove(guess: string) {
       const word = guess.toUpperCase();
-      const validation = await game.validateMove(guess);
+      const validation = await this.validateMove(guess);
       if (!validation.isValid) return;
 
-      update(s => {
-        const newHistory = [...s.history, { word, type: validation.type, previousWord: s.currentWord, timestamp: Date.now() }];
-        const isGameOver = word === s.finishWord;
-        return {
-          ...s,
-          currentWord: word,
-          history: newHistory,
-          isGameOver,
-          score: s.score + 1
-        };
-      });
-    }
-  };
+      const prev = this.currentWord;
+      this.currentWord = word;
+      this.history.push({ word, type: validation.type, previousWord: prev, timestamp: Date.now() });
+      this.isGameOver = (word === this.finishWord);
+      this.score++;
+
+      this.#refreshSemanticMoves(word);
+  }
 }
 
 async function fetchRelations(word: string): Promise<{ synonyms: string[], antonyms: string[] }> {
+  const cache = getCache();
+  const cached = cache[word.toLowerCase()];
+  if (cached && Date.now() - cached.timestamp < 86400000) return cached.data;
+
   try {
     const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
     if (!response.ok) return { synonyms: [], antonyms: [] };
@@ -153,7 +158,6 @@ async function fetchRelations(word: string): Promise<{ synonyms: string[], anton
       entry.meanings.forEach((meaning: any) => {
         if (meaning.synonyms) synonyms.push(...meaning.synonyms.map((s: string) => s.toLowerCase()));
         if (meaning.antonyms) antonyms.push(...meaning.antonyms.map((a: string) => a.toLowerCase()));
-        
         meaning.definitions.forEach((def: any) => {
            if (def.synonyms) synonyms.push(...def.synonyms.map((s: string) => s.toLowerCase()));
            if (def.antonyms) antonyms.push(...def.antonyms.map((a: string) => a.toLowerCase()));
@@ -161,22 +165,25 @@ async function fetchRelations(word: string): Promise<{ synonyms: string[], anton
       });
     });
 
-    return { 
-      synonyms: Array.from(new Set(synonyms)), 
-      antonyms: Array.from(new Set(antonyms)) 
-    };
+    const result = { synonyms: Array.from(new Set(synonyms)), antonyms: Array.from(new Set(antonyms)) };
+    setCache(word, result);
+    return result;
   } catch (e) {
     return { synonyms: [], antonyms: [] };
   }
 }
 
 async function checkWordExists(word: string): Promise<boolean> {
+    const cache = getCache();
+    if (cache[word.toLowerCase()]) return true;
     try {
         const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-        return response.ok;
-    } catch {
+        if (response.ok) {
+            fetchRelations(word); 
+            return true;
+        }
         return false;
-    }
+    } catch { return false; }
 }
 
 function getLetterDifferences(word1: string, word2: string): number {
@@ -189,9 +196,8 @@ function getLetterDifferences(word1: string, word2: string): number {
 }
 
 function isAnagram(word1: string, word2: string): boolean {
-    if (word1 === word2) return false;
-    if (word1.length !== word2.length) return false;
+    if (word1 === word2 || word1.length !== word2.length) return false;
     return word1.split('').sort().join('') === word2.split('').sort().join('');
 }
 
-export const game = createGame();
+export const game = new GameEngine();

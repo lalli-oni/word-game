@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { game, type ConnectionType, type ValidationResult } from './lib/game';
+  import { game, type ValidationResult } from './lib/game';
   import { scenarios } from './lib/scenarios';
   import './app.css';
 
-  let guess = '';
-  let showScenarios = false;
-  let validation: ValidationResult = { isValid: false, type: 'unknown', errors: [] };
-  let activeErrors: string[] = [];
-  let isShaking = false;
+  let guess = $state('');
+  let showScenarios = $state(false);
+  let validation: ValidationResult = $state({ isValid: false, type: 'unknown', errors: [] });
+  let activeErrors: string[] = $state([]);
+  let isShaking = $state(false);
 
   const cardBase = "flex-1 flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all w-full box-border";
   const spineBase = "w-12 flex flex-col items-center justify-center shrink-0 h-16";
@@ -66,7 +66,7 @@
   }
 
   function getInputCharacterClasses(char: string, index: number, val: ValidationResult) {
-    const prev = state.currentWord;
+    const prev = game.currentWord;
     
     if (val.isValid) {
       const colors = {
@@ -97,8 +97,6 @@
     { label: 'Synonym', color: 'bg-purple-500', tip: 'A word with a similar meaning (e.g., HAPPY → GLAD)' },
     { label: 'Antonym', color: 'bg-orange-500', tip: 'A word with the opposite meaning (e.g., COLD → HOT)' }
   ];
-
-  $: state = $game;
 </script>
 
 <main class="min-h-screen bg-slate-900 text-white flex flex-col items-center p-4">
@@ -111,7 +109,7 @@
       </div>
       <div class="text-right">
         <p class="text-slate-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-1">Score</p>
-        <div class="text-3xl font-black text-white leading-none">{state.score}</div>
+        <div class="text-3xl font-black text-white leading-none">{game.score}</div>
       </div>
     </div>
 
@@ -123,7 +121,7 @@
               <span class="font-bold group-hover:text-blue-400 transition-colors">{s.name}</span>
               <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-900 text-slate-500 border border-slate-700">{s.difficulty}</span>
             </div>
-            <p class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{s.startWord} <span class="text-slate-700">➔</span> {s.finishWord}</p>
+            <p class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{s.startWord} ➔ {s.finishWord}</p>
           </button>
         {/each}
       </div>
@@ -136,13 +134,13 @@
         <div class={labelBase} title="Start">🟢</div>
       </div>
       <div class={cardBase}>
-        <span class="font-mono text-2xl font-black tracking-[0.2em] text-slate-400">{state.startWord}</span>
+        <span class="font-mono text-2xl font-black tracking-[0.2em] text-slate-400">{game.startWord}</span>
         <div class="w-2 h-2 rounded-full bg-slate-600"></div>
       </div>
     </div>
 
     <div class="flex flex-col gap-4 max-h-[50vh] overflow-y-auto custom-scrollbar">
-      {#each state.history.slice(1) as move, i}
+      {#each game.history.slice(1) as move, i}
         <div class="flex gap-4 items-center animate-in fade-in slide-in-from-left-4 duration-300">
           <div class={spineBase}>
             <div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg shrink-0">{i + 1}</div>
@@ -163,10 +161,10 @@
       {/each}
     </div>
 
-    {#if state.isGameOver}
+    {#if game.isGameOver}
       <div class="ml-16 p-8 bg-emerald-500/10 border border-emerald-500/30 rounded-3xl backdrop-blur-xl animate-in zoom-in duration-500 text-center">
         <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter">Success</div>
-        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6">Path completed in {state.score} moves</p>
+        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6">Path completed in {game.score} moves</p>
         <div class="flex gap-3 justify-center">
           <button on:click={() => game.reset()} class="bg-slate-800 hover:bg-slate-700 text-[10px] font-black px-8 py-3 rounded-xl border border-slate-700 transition-all active:scale-95">RETRY</button>
           <button on:click={() => showScenarios = true} class="bg-emerald-600 hover:bg-emerald-500 text-[10px] font-black px-8 py-3 rounded-xl transition-all shadow-lg shadow-emerald-900/40 active:scale-95">NEXT</button>
@@ -183,7 +181,7 @@
                 validation.type === 'antonym' ? 'text-orange-500 border-orange-500' : 
                 validation.type === 'anagram' ? 'text-pink-500 border-pink-500' : ''
               ) : (validation.errors.length > 0 ? 'text-red-500 border-red-500 shadow-lg' : 'text-slate-600')}">
-              {state.score + 1}
+              {game.score + 1}
             </div>
           </div>
           <form on:submit|preventDefault={handleSubmit} class="flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border relative
@@ -256,7 +254,7 @@
         </div>
         <div class="{cardBase} border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent">
           <span class="font-mono text-2xl font-black tracking-[0.2em] text-emerald-400 animate-pulse">
-            {state.finishWord}
+            {game.finishWord}
           </span>
           <div class="w-8 h-8 rounded-full border-2 border-emerald-500/20 flex items-center justify-center">
             <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
