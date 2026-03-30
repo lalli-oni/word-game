@@ -66,6 +66,34 @@
     return '';
   }
 
+  function getInputCharacterClasses(char: string, index: number, val: ValidationResult) {
+    const prev = state.currentWord;
+    
+    // Valid move underlines
+    if (val.isValid) {
+      const colors = {
+        letter: 'decoration-blue-500',
+        synonym: 'decoration-purple-500',
+        antonym: 'decoration-orange-500',
+        anagram: 'decoration-pink-500',
+        initial: '',
+        unknown: ''
+      };
+      if (char !== prev[index]) {
+        return 'underline underline-offset-4 decoration-2 ' + colors[val.type];
+      }
+    }
+
+    // Invalid near-morph underlines (Red)
+    if (!val.isValid && val.diffCount && val.diffCount > 1) {
+      if (char !== prev[index]) {
+        return 'underline underline-offset-4 decoration-2 decoration-red-500/60';
+      }
+    }
+
+    return '';
+  }
+
   const legendItems = [
     { label: 'Morph', color: 'bg-blue-500', tip: 'Change exactly one letter (e.g., CAT → BAT)' },
     { label: 'Anagram', color: 'bg-pink-500', tip: 'Rearrange the existing letters (e.g., ARC → CAR)' },
@@ -98,7 +126,7 @@
               <span class="font-bold group-hover:text-blue-400 transition-colors">{s.name}</span>
               <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-900 text-slate-500 border border-slate-700">{s.difficulty}</span>
             </div>
-            <p class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{s.startWord} ➔ {s.finishWord}</p>
+            <p class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{s.startWord} <span class="text-slate-700">➔</span> {s.finishWord}</p>
           </button>
         {/each}
       </div>
@@ -160,23 +188,31 @@
                 validation.type === 'synonym' ? 'text-purple-500 border-purple-500' : 
                 validation.type === 'antonym' ? 'text-orange-500 border-orange-500' : 
                 validation.type === 'anagram' ? 'text-pink-500 border-pink-500' : ''
-              ) : 'text-slate-600'}">
+              ) : (validation.diffCount && validation.diffCount > 1 ? 'text-red-500 border-red-500 shadow-lg' : 'text-slate-600')}">
               {state.score + 1}
             </div>
           </div>
-          <form on:submit|preventDefault={handleSubmit} class="flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border 
+          <form on:submit|preventDefault={handleSubmit} class="flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border relative
             {validation.isValid ? (
               validation.type === 'letter' ? 'border-blue-500 shadow-blue-500/20' : 
               validation.type === 'synonym' ? 'border-purple-500 shadow-purple-500/20' : 
               validation.type === 'antonym' ? 'border-orange-500 shadow-orange-500/20' : 
               validation.type === 'anagram' ? 'border-pink-500 shadow-pink-500/20' : ''
             ) : (errorMessage ? 'border-red-500 shadow-red-500/20' : 'border-blue-500/30 shadow-blue-500/10')}">
+            
+            <!-- Real-time Underline Layer -->
+            <div class="absolute inset-y-0 left-5 flex items-center pointer-events-none font-mono text-2xl uppercase tracking-[0.2em] font-black">
+                {#each guess.toUpperCase().split('') as char, i}
+                    <span class={getInputCharacterClasses(char, i, validation)}>{char}</span>
+                {/each}
+            </div>
+
             <input 
               type="text" 
               bind:value={guess} 
               on:input={handleInput}
               placeholder="NEXT WORD..." 
-              class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-800" 
+              class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-800 text-transparent caret-white selection:bg-blue-500/30" 
               maxlength="20" 
             />
             <div class="group relative h-full">

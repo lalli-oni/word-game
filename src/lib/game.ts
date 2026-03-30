@@ -23,6 +23,7 @@ export interface ValidationResult {
   isValid: boolean;
   type: ConnectionType;
   error?: string;
+  diffCount?: number;
 }
 
 const initialState: GameState = {
@@ -72,14 +73,14 @@ function createGame() {
       }
 
       const prevWord = currentState.currentWord;
+      const diffCount = getLetterDifferences(prevWord, word);
       
-      // 1. Check Letter Change (Synchronous)
-      const diffs = getLetterDifferences(prevWord, word);
-      if (diffs === 1 && prevWord.length === word.length) {
+      // 1. Check Morph (Single Letter Change)
+      if (diffCount === 1 && prevWord.length === word.length) {
           return { isValid: true, type: 'letter' };
       }
 
-      // 2. Check Anagram (Synchronous)
+      // 2. Check Anagram
       if (isAnagram(prevWord, word)) {
           return { isValid: true, type: 'anagram' };
       }
@@ -94,8 +95,17 @@ function createGame() {
       }
 
       // If not valid, try to guess the error
-      if (prevWord.length === word.length && diffs > 1 && diffs <= 3) {
-          return { isValid: false, type: 'unknown', error: `Close! You changed ${diffs} letters, but a Morph only allows 1.` };
+      if (prevWord.length !== word.length) {
+          // Check if it's even a word first
+          const exists = await checkWordExists(word);
+          if (!exists) {
+            return { isValid: false, type: 'unknown', error: `"${word}" doesn't seem to be a valid English word.` };
+          }
+          return { isValid: false, type: 'unknown', error: `A Morph or Anagram requires the same number of letters. Try a synonym of "${prevWord}" instead?` };
+      }
+
+      if (diffCount > 1 && diffCount <= 3) {
+          return { isValid: false, type: 'unknown', error: `Close! You changed ${diffCount} letters, but a Morph only allows 1.`, diffCount };
       }
 
       // Final check: is it even a word?
@@ -109,8 +119,9 @@ function createGame() {
     makeMove: async (guess: string) => {
       const word = guess.toUpperCase();
       
-      // We can reuse validateMove here
-      const validation = await createGame().validateMove(guess);
+      // We can't use createGame() here as it creates a NEW store instance!
+      // Instead, we use the methods of THIS instance.
+      const validation = await game.validateMove(guess);
       if (!validation.isValid) return;
 
       update(s => {
