@@ -53,6 +53,25 @@ function createGame() {
         score: 0
       }));
     },
+    validateMove: async (guess: string): Promise<ConnectionType> => {
+      const word = guess.toUpperCase();
+      if (!word) return 'unknown';
+
+      let currentState: GameState | undefined;
+      subscribe(s => currentState = s)();
+      if (!currentState || currentState.isGameOver) return 'unknown';
+      if (currentState.history.some(m => m.word === word)) return 'unknown';
+
+      const prevWord = currentState.currentWord;
+      if (isOneLetterDifferent(prevWord, word)) return 'letter';
+      if (isAnagram(prevWord, word)) return 'anagram';
+
+      const relations = await fetchRelations(prevWord);
+      if (relations.synonyms.includes(word.toLowerCase())) return 'synonym';
+      if (relations.antonyms.includes(word.toLowerCase())) return 'antonym';
+
+      return 'unknown';
+    },
     makeMove: async (guess: string) => {
       const word = guess.toUpperCase();
       let type: ConnectionType = 'unknown';

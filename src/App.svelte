@@ -1,25 +1,37 @@
 <script lang="ts">
-  import { game } from './lib/game';
+  import { game, type ConnectionType } from './lib/game';
   import { scenarios } from './lib/scenarios';
   import './app.css';
 
   let guess = '';
   let showScenarios = false;
+  let validationType: ConnectionType = 'unknown';
 
   const cardBase = "flex-1 flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all w-full box-border";
   const spineBase = "w-12 flex flex-col items-center justify-center shrink-0 h-16";
   const labelBase = "text-[16px] font-black leading-none";
 
+  async function handleInput() {
+    if (guess.length >= 2) {
+      validationType = await game.validateMove(guess);
+    } else {
+      validationType = 'unknown';
+    }
+  }
+
   function handleSubmit() {
     if (guess.trim()) {
       game.makeMove(guess.trim());
       guess = '';
+      validationType = 'unknown';
     }
   }
 
   function selectScenario(scenario: any) {
     game.loadScenario(scenario);
     showScenarios = false;
+    guess = '';
+    validationType = 'unknown';
   }
 
   function getCharacterClasses(char: string, index: number, move: any) {
@@ -48,8 +60,8 @@
 </script>
 
 <main class="min-h-screen bg-slate-900 text-white flex flex-col items-center p-4">
-  <header class="mb-10 text-center relative w-full max-w-md">
-    <h1 class="text-4xl font-black mb-2 tracking-tighter uppercase italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Word Connection</h1>
+  <header class="mb-10 text-center relative w-full max-w-lg">
+    <h1 class="text-4xl md:text-5xl font-black mb-2 tracking-tighter uppercase italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Word Connection</h1>
     <div class="flex justify-between items-end px-2">
       <div class="text-left">
         <p class="text-slate-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-1">Session</p>
@@ -76,9 +88,9 @@
     {/if}
   </header>
 
-  <div class="w-full max-w-md flex flex-col gap-4 pr-2">
+  <div class="w-full max-w-lg flex flex-col gap-4 pr-2">
     <!-- Start Word -->
-    <div class="flex gap-3 items-center">
+    <div class="flex gap-4 items-center">
       <div class={spineBase}>
         <div class={labelBase} title="Start">🟢</div>
       </div>
@@ -89,9 +101,9 @@
     </div>
 
     <!-- History Container -->
-    <div class="flex flex-col gap-4 max-h-80 overflow-y-auto custom-scrollbar">
+    <div class="flex flex-col gap-4 max-h-[50vh] overflow-y-auto custom-scrollbar">
       {#each state.history.slice(1) as move, i}
-        <div class="flex gap-3 items-center animate-in fade-in slide-in-from-left-4 duration-300">
+        <div class="flex gap-4 items-center animate-in fade-in slide-in-from-left-4 duration-300">
           <div class={spineBase}>
             <div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg shrink-0">{i + 1}</div>
           </div>
@@ -112,7 +124,7 @@
     </div>
 
     {#if state.isGameOver}
-      <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border border-emerald-500/30 rounded-3xl backdrop-blur-xl animate-in zoom-in duration-500 text-center">
+      <div class="ml-16 p-8 bg-emerald-500/10 border border-emerald-500/30 rounded-3xl backdrop-blur-xl animate-in zoom-in duration-500 text-center">
         <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter">Success</div>
         <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6">Path completed in {state.score} moves</p>
         <div class="flex gap-3 justify-center">
@@ -122,13 +134,41 @@
       </div>
     {:else}
       <!-- Input -->
-      <div class="flex gap-3 items-center">
+      <div class="flex gap-4 items-center">
         <div class={spineBase}>
-          <div class="text-[10px] font-black text-slate-600 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 border-dashed shrink-0">{state.score + 1}</div>
+          <div class="text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 border-dashed shrink-0 
+            {validationType === 'unknown' ? 'text-slate-600' : 
+             validationType === 'letter' ? 'text-blue-500 border-blue-500' : 
+             validationType === 'synonym' ? 'text-purple-500 border-purple-500' : 
+             validationType === 'antonym' ? 'text-orange-500 border-orange-500' : 
+             validationType === 'anagram' ? 'text-pink-500 border-pink-500' : ''}">
+            {state.score + 1}
+          </div>
         </div>
-        <form on:submit|preventDefault={handleSubmit} class="flex-1 flex h-16 bg-slate-900 border-2 border-blue-500/30 rounded-2xl focus-within:border-blue-500 transition-all shadow-2xl shadow-blue-500/10 overflow-hidden box-border">
-          <input type="text" bind:value={guess} placeholder="NEXT WORD..." class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-800" maxlength="20" />
-          <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white w-16 h-full transition-all active:scale-90 flex items-center justify-center border-l-2 border-blue-500/30 shrink-0">
+        <form on:submit|preventDefault={handleSubmit} class="flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border 
+          {validationType === 'unknown' ? 'border-blue-500/30 shadow-blue-500/10' : 
+           validationType === 'letter' ? 'border-blue-500 shadow-blue-500/20' : 
+           validationType === 'synonym' ? 'border-purple-500 shadow-purple-500/20' : 
+           validationType === 'antonym' ? 'border-orange-500 shadow-orange-500/20' : 
+           validationType === 'anagram' ? 'border-pink-500 shadow-pink-500/20' : ''}">
+          <input 
+            type="text" 
+            bind:value={guess} 
+            on:input={handleInput}
+            placeholder="NEXT WORD..." 
+            class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-800" 
+            maxlength="20" 
+          />
+          <button 
+            type="submit" 
+            class="text-white w-20 h-full transition-all active:scale-90 flex items-center justify-center shrink-0 
+              {validationType === 'unknown' ? 'bg-blue-600/50 cursor-not-allowed' : 
+               validationType === 'letter' ? 'bg-blue-600 hover:bg-blue-500' : 
+               validationType === 'synonym' ? 'bg-purple-600 hover:bg-purple-500' : 
+               validationType === 'antonym' ? 'bg-orange-600 hover:bg-orange-500' : 
+               validationType === 'anagram' ? 'bg-pink-600 hover:bg-pink-500' : ''}"
+            disabled={validationType === 'unknown'}
+          >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7" />
             </svg>
@@ -137,7 +177,7 @@
       </div>
 
       <!-- Goal -->
-      <div class="flex gap-3 items-center mt-2">
+      <div class="flex gap-4 items-center mt-2">
         <div class={spineBase}>
           <div class={labelBase} title="Goal">🏁</div>
         </div>
@@ -154,7 +194,7 @@
   </div>
 
   <!-- Legend -->
-  <section class="mt-12 max-w-md w-full px-4">
+  <section class="mt-12 max-w-lg w-full px-4">
     <div class="grid grid-cols-4 gap-4">
       {#each legendItems as item}
         <div class="group relative flex flex-col items-center cursor-help">
