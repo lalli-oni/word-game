@@ -22,7 +22,7 @@ export interface GameState {
 export interface ValidationResult {
   isValid: boolean;
   type: ConnectionType;
-  error?: string;
+  errors: string[];
   diffCount?: number;
 }
 
@@ -62,65 +62,66 @@ function createGame() {
     },
     validateMove: async (guess: string): Promise<ValidationResult> => {
       const word = guess.toUpperCase();
-      if (!word || word.length < 2) return { isValid: false, type: 'unknown' };
+      if (!word || word.length < 2) return { isValid: false, type: 'unknown', errors: [] };
 
       let currentState: GameState | undefined;
       subscribe(s => currentState = s)();
-      if (!currentState || currentState.isGameOver) return { isValid: false, type: 'unknown', error: 'Game is over' };
+      if (!currentState || currentState.isGameOver) return { isValid: false, type: 'unknown', errors: ['Game is over'] };
       
       if (currentState.history.some(m => m.word === word)) {
-          return { isValid: false, type: 'unknown', error: `You've already used "${word}"!` };
+          return { isValid: false, type: 'unknown', errors: [`"${word}" has already been used.`] };
       }
 
       const prevWord = currentState.currentWord;
-      const diffCount = getLetterDifferences(prevWord, word);
+      const errors: string[] = [];
       
       // 1. Check Morph (Single Letter Change)
+      const diffCount = getLetterDifferences(prevWord, word);
       if (diffCount === 1 && prevWord.length === word.length) {
-          return { isValid: true, type: 'letter' };
+          return { isValid: true, type: 'letter', errors: [] };
       }
 
       // 2. Check Anagram
       if (isAnagram(prevWord, word)) {
-          return { isValid: true, type: 'anagram' };
+          return { isValid: true, type: 'anagram', errors: [] };
       }
 
       // 3. Check Dictionary & Relations (Asynchronous)
       const relations = await fetchRelations(prevWord);
       if (relations.synonyms.includes(word.toLowerCase())) {
-          return { isValid: true, type: 'synonym' };
+          return { isValid: true, type: 'synonym', errors: [] };
       }
       if (relations.antonyms.includes(word.toLowerCase())) {
-          return { isValid: true, type: 'antonym' };
+          return { isValid: true, type: 'antonym', errors: [] };
       }
 
-      // If not valid, try to guess the error
+      // --- Not valid, collect errors ---
+      
+      // Length check
       if (prevWord.length !== word.length) {
-          // Check if it's even a word first
-          const exists = await checkWordExists(word);
-          if (!exists) {
-            return { isValid: false, type: 'unknown', error: `"${word}" doesn't seem to be a valid English word.` };
-          }
-          return { isValid: false, type: 'unknown', error: `A Morph or Anagram requires the same number of letters. Try a synonym of "${prevWord}" instead?` };
+          errors.push('Word length must match for a Morph or Anagram.');
+      } else if (diffCount > 1) {
+          errors.push(`A Morph only allows 1 letter change (you changed ${diffCount}).`);
       }
 
-      if (diffCount > 1 && diffCount <= 3) {
-          return { isValid: false, type: 'unknown', error: `Close! You changed ${diffCount} letters, but a Morph only allows 1.`, diffCount };
-      }
+      // Semantic check
+      errors.push(`"${word}" is not a known synonym or antonym of "${prevWord}".`);
 
-      // Final check: is it even a word?
+      // Dictionary existence check
       const exists = await checkWordExists(word);
       if (!exists) {
-          return { isValid: false, type: 'unknown', error: `"${word}" doesn't seem to be a valid English word.` };
+          errors.push(`"${word}" is not a valid English word.`);
       }
 
-      return { isValid: false, type: 'unknown', error: `"${word}" is not a known synonym or antonym of "${prevWord}".` };
+      return { 
+          isValid: false, 
+          type: 'unknown', 
+          errors, 
+          diffCount: prevWord.length === word.length ? diffCount : undefined 
+      };
     },
     makeMove: async (guess: string) => {
       const word = guess.toUpperCase();
-      
-      // We can't use createGame() here as it creates a NEW store instance!
-      // Instead, we use the methods of THIS instance.
       const validation = await game.validateMove(guess);
       if (!validation.isValid) return;
 

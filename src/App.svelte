@@ -5,8 +5,8 @@
 
   let guess = '';
   let showScenarios = false;
-  let validation: ValidationResult = { isValid: false, type: 'unknown' };
-  let errorMessage = '';
+  let validation: ValidationResult = { isValid: false, type: 'unknown', errors: [] };
+  let activeErrors: string[] = [];
   let isShaking = false;
 
   const cardBase = "flex-1 flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all w-full box-border";
@@ -14,26 +14,25 @@
   const labelBase = "text-[16px] font-black leading-none";
 
   async function handleInput() {
-    errorMessage = '';
+    activeErrors = [];
     if (guess.length >= 2) {
       validation = await game.validateMove(guess);
     } else {
-      validation = { isValid: false, type: 'unknown' };
+      validation = { isValid: false, type: 'unknown', errors: [] };
     }
   }
 
   async function handleSubmit() {
     if (!guess.trim()) return;
     
-    // Final check on submit
     const result = await game.validateMove(guess);
     if (result.isValid) {
       game.makeMove(guess.trim());
       guess = '';
-      validation = { isValid: false, type: 'unknown' };
-      errorMessage = '';
+      validation = { isValid: false, type: 'unknown', errors: [] };
+      activeErrors = [];
     } else {
-      errorMessage = result.error || 'Invalid move';
+      activeErrors = result.errors;
       triggerShake();
     }
   }
@@ -47,8 +46,8 @@
     game.loadScenario(scenario);
     showScenarios = false;
     guess = '';
-    validation = { isValid: false, type: 'unknown' };
-    errorMessage = '';
+    validation = { isValid: false, type: 'unknown', errors: [] };
+    activeErrors = [];
   }
 
   function getCharacterClasses(char: string, index: number, move: any) {
@@ -69,7 +68,6 @@
   function getInputCharacterClasses(char: string, index: number, val: ValidationResult) {
     const prev = state.currentWord;
     
-    // Valid move underlines
     if (val.isValid) {
       const colors = {
         letter: 'decoration-blue-500',
@@ -84,7 +82,6 @@
       }
     }
 
-    // Invalid near-morph underlines (Red)
     if (!val.isValid && val.diffCount && val.diffCount > 1) {
       if (char !== prev[index]) {
         return 'underline underline-offset-4 decoration-2 decoration-red-500/60';
@@ -134,7 +131,6 @@
   </header>
 
   <div class="w-full max-w-lg flex flex-col gap-4 pr-2">
-    <!-- Start Word -->
     <div class="flex gap-4 items-center">
       <div class={spineBase}>
         <div class={labelBase} title="Start">🟢</div>
@@ -145,7 +141,6 @@
       </div>
     </div>
 
-    <!-- History Container -->
     <div class="flex flex-col gap-4 max-h-[50vh] overflow-y-auto custom-scrollbar">
       {#each state.history.slice(1) as move, i}
         <div class="flex gap-4 items-center animate-in fade-in slide-in-from-left-4 duration-300">
@@ -178,7 +173,6 @@
         </div>
       </div>
     {:else}
-      <!-- Input -->
       <div class="flex flex-col gap-2">
         <div class="flex gap-4 items-center {isShaking ? 'animate-shake' : ''}">
           <div class={spineBase}>
@@ -188,7 +182,7 @@
                 validation.type === 'synonym' ? 'text-purple-500 border-purple-500' : 
                 validation.type === 'antonym' ? 'text-orange-500 border-orange-500' : 
                 validation.type === 'anagram' ? 'text-pink-500 border-pink-500' : ''
-              ) : (validation.diffCount && validation.diffCount > 1 ? 'text-red-500 border-red-500 shadow-lg' : 'text-slate-600')}">
+              ) : (validation.errors.length > 0 ? 'text-red-500 border-red-500 shadow-lg' : 'text-slate-600')}">
               {state.score + 1}
             </div>
           </div>
@@ -198,9 +192,8 @@
               validation.type === 'synonym' ? 'border-purple-500 shadow-purple-500/20' : 
               validation.type === 'antonym' ? 'border-orange-500 shadow-orange-500/20' : 
               validation.type === 'anagram' ? 'border-pink-500 shadow-pink-500/20' : ''
-            ) : (errorMessage ? 'border-red-500 shadow-red-500/20' : 'border-blue-500/30 shadow-blue-500/10')}">
+            ) : (activeErrors.length > 0 ? 'border-red-500 shadow-red-500/20' : 'border-blue-500/30 shadow-blue-500/10')}">
             
-            <!-- Real-time Underline Layer -->
             <div class="absolute inset-y-0 left-5 flex items-center pointer-events-none font-mono text-2xl uppercase tracking-[0.2em] font-black">
                 {#each guess.toUpperCase().split('') as char, i}
                     <span class={getInputCharacterClasses(char, i, validation)}>{char}</span>
@@ -233,8 +226,12 @@
                 
                 {#if !validation.isValid && guess.length >= 2}
                   <div class="invisible group-hover:visible absolute right-0 bottom-full mb-4 w-64 p-4 bg-slate-800 border border-red-500/50 rounded-2xl shadow-2xl text-[11px] text-red-200 leading-relaxed z-40 animate-in fade-in slide-in-from-bottom-2">
-                    <p class="font-bold mb-1">Move Invalid</p>
-                    <p>{validation.error || 'This move does not follow the rules.'}</p>
+                    <p class="font-bold mb-1 underline underline-offset-4 decoration-red-500">Move Invalid</p>
+                    <ul class="list-disc ml-3 space-y-1">
+                      {#each validation.errors as err}
+                        <li>{err}</li>
+                      {/each}
+                    </ul>
                     <div class="absolute top-full right-6 border-[10px] border-transparent border-t-slate-800"></div>
                   </div>
                 {/if}
@@ -242,16 +239,17 @@
           </form>
         </div>
         
-        {#if errorMessage}
-          <div class="ml-16 animate-in slide-in-from-top-2 fade-in duration-300">
-            <p class="text-[11px] font-bold text-red-400 uppercase tracking-wider bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 inline-block">
-              {errorMessage}
-            </p>
+        {#if activeErrors.length > 0}
+          <div class="ml-16 animate-in slide-in-from-top-2 fade-in duration-300 flex flex-col gap-1">
+            {#each activeErrors as err}
+              <p class="text-[10px] font-bold text-red-400 uppercase tracking-wider bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 inline-block self-start">
+                {err}
+              </p>
+            {/each}
           </div>
         {/if}
       </div>
 
-      <!-- Goal -->
       <div class="flex gap-4 items-center mt-2">
         <div class={spineBase}>
           <div class={labelBase} title="Goal">🏁</div>
@@ -268,7 +266,6 @@
     {/if}
   </div>
 
-  <!-- Legend -->
   <section class="mt-12 max-w-lg w-full px-4">
     <div class="grid grid-cols-4 gap-4">
       {#each legendItems as item}
