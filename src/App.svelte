@@ -1,37 +1,54 @@
 <script lang="ts">
-  import { game, type ConnectionType } from './lib/game';
+  import { game, type ConnectionType, type ValidationResult } from './lib/game';
   import { scenarios } from './lib/scenarios';
   import './app.css';
 
   let guess = '';
   let showScenarios = false;
-  let validationType: ConnectionType = 'unknown';
+  let validation: ValidationResult = { isValid: false, type: 'unknown' };
+  let errorMessage = '';
+  let isShaking = false;
 
   const cardBase = "flex-1 flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all w-full box-border";
   const spineBase = "w-12 flex flex-col items-center justify-center shrink-0 h-16";
   const labelBase = "text-[16px] font-black leading-none";
 
   async function handleInput() {
+    errorMessage = '';
     if (guess.length >= 2) {
-      validationType = await game.validateMove(guess);
+      validation = await game.validateMove(guess);
     } else {
-      validationType = 'unknown';
+      validation = { isValid: false, type: 'unknown' };
     }
   }
 
-  function handleSubmit() {
-    if (guess.trim()) {
+  async function handleSubmit() {
+    if (!guess.trim()) return;
+    
+    // Final check on submit
+    const result = await game.validateMove(guess);
+    if (result.isValid) {
       game.makeMove(guess.trim());
       guess = '';
-      validationType = 'unknown';
+      validation = { isValid: false, type: 'unknown' };
+      errorMessage = '';
+    } else {
+      errorMessage = result.error || 'Invalid move';
+      triggerShake();
     }
+  }
+
+  function triggerShake() {
+      isShaking = true;
+      setTimeout(() => isShaking = false, 500);
   }
 
   function selectScenario(scenario: any) {
     game.loadScenario(scenario);
     showScenarios = false;
     guess = '';
-    validationType = 'unknown';
+    validation = { isValid: false, type: 'unknown' };
+    errorMessage = '';
   }
 
   function getCharacterClasses(char: string, index: number, move: any) {
@@ -61,7 +78,7 @@
 
 <main class="min-h-screen bg-slate-900 text-white flex flex-col items-center p-4">
   <header class="mb-10 text-center relative w-full max-w-lg">
-    <h1 class="text-4xl md:text-5xl font-black mb-2 tracking-tighter uppercase italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Word Connection</h1>
+    <h1 class="text-4xl md:text-5xl font-black mb-2 tracking-tighter uppercase italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 animate-in fade-in duration-700">Word Connection</h1>
     <div class="flex justify-between items-end px-2">
       <div class="text-left">
         <p class="text-slate-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-1">Session</p>
@@ -134,46 +151,68 @@
       </div>
     {:else}
       <!-- Input -->
-      <div class="flex gap-4 items-center">
-        <div class={spineBase}>
-          <div class="text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 border-dashed shrink-0 
-            {validationType === 'unknown' ? 'text-slate-600' : 
-             validationType === 'letter' ? 'text-blue-500 border-blue-500' : 
-             validationType === 'synonym' ? 'text-purple-500 border-purple-500' : 
-             validationType === 'antonym' ? 'text-orange-500 border-orange-500' : 
-             validationType === 'anagram' ? 'text-pink-500 border-pink-500' : ''}">
-            {state.score + 1}
+      <div class="flex flex-col gap-2">
+        <div class="flex gap-4 items-center {isShaking ? 'animate-shake' : ''}">
+          <div class={spineBase}>
+            <div class="text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 border-dashed shrink-0 
+              {validation.isValid ? (
+                validation.type === 'letter' ? 'text-blue-500 border-blue-500' : 
+                validation.type === 'synonym' ? 'text-purple-500 border-purple-500' : 
+                validation.type === 'antonym' ? 'text-orange-500 border-orange-500' : 
+                validation.type === 'anagram' ? 'text-pink-500 border-pink-500' : ''
+              ) : 'text-slate-600'}">
+              {state.score + 1}
+            </div>
           </div>
+          <form on:submit|preventDefault={handleSubmit} class="flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border 
+            {validation.isValid ? (
+              validation.type === 'letter' ? 'border-blue-500 shadow-blue-500/20' : 
+              validation.type === 'synonym' ? 'border-purple-500 shadow-purple-500/20' : 
+              validation.type === 'antonym' ? 'border-orange-500 shadow-orange-500/20' : 
+              validation.type === 'anagram' ? 'border-pink-500 shadow-pink-500/20' : ''
+            ) : (errorMessage ? 'border-red-500 shadow-red-500/20' : 'border-blue-500/30 shadow-blue-500/10')}">
+            <input 
+              type="text" 
+              bind:value={guess} 
+              on:input={handleInput}
+              placeholder="NEXT WORD..." 
+              class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-800" 
+              maxlength="20" 
+            />
+            <div class="group relative h-full">
+                <button 
+                  type="submit" 
+                  class="text-white w-20 h-full transition-all active:scale-90 flex items-center justify-center shrink-0 
+                    {validation.isValid ? (
+                      validation.type === 'letter' ? 'bg-blue-600 hover:bg-blue-500' : 
+                      validation.type === 'synonym' ? 'bg-purple-600 hover:bg-purple-500' : 
+                      validation.type === 'antonym' ? 'bg-orange-600 hover:bg-orange-500' : 
+                      validation.type === 'anagram' ? 'bg-pink-600 hover:bg-pink-500' : ''
+                    ) : 'bg-slate-700 hover:bg-slate-600'}"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7" />
+                  </svg>
+                </button>
+                
+                {#if !validation.isValid && guess.length >= 2}
+                  <div class="invisible group-hover:visible absolute right-0 bottom-full mb-4 w-64 p-4 bg-slate-800 border border-red-500/50 rounded-2xl shadow-2xl text-[11px] text-red-200 leading-relaxed z-40 animate-in fade-in slide-in-from-bottom-2">
+                    <p class="font-bold mb-1">Move Invalid</p>
+                    <p>{validation.error || 'This move does not follow the rules.'}</p>
+                    <div class="absolute top-full right-6 border-[10px] border-transparent border-t-slate-800"></div>
+                  </div>
+                {/if}
+            </div>
+          </form>
         </div>
-        <form on:submit|preventDefault={handleSubmit} class="flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border 
-          {validationType === 'unknown' ? 'border-blue-500/30 shadow-blue-500/10' : 
-           validationType === 'letter' ? 'border-blue-500 shadow-blue-500/20' : 
-           validationType === 'synonym' ? 'border-purple-500 shadow-purple-500/20' : 
-           validationType === 'antonym' ? 'border-orange-500 shadow-orange-500/20' : 
-           validationType === 'anagram' ? 'border-pink-500 shadow-pink-500/20' : ''}">
-          <input 
-            type="text" 
-            bind:value={guess} 
-            on:input={handleInput}
-            placeholder="NEXT WORD..." 
-            class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-800" 
-            maxlength="20" 
-          />
-          <button 
-            type="submit" 
-            class="text-white w-20 h-full transition-all active:scale-90 flex items-center justify-center shrink-0 
-              {validationType === 'unknown' ? 'bg-blue-600/50 cursor-not-allowed' : 
-               validationType === 'letter' ? 'bg-blue-600 hover:bg-blue-500' : 
-               validationType === 'synonym' ? 'bg-purple-600 hover:bg-purple-500' : 
-               validationType === 'antonym' ? 'bg-orange-600 hover:bg-orange-500' : 
-               validationType === 'anagram' ? 'bg-pink-600 hover:bg-pink-500' : ''}"
-            disabled={validationType === 'unknown'}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7" />
-            </svg>
-          </button>
-        </form>
+        
+        {#if errorMessage}
+          <div class="ml-16 animate-in slide-in-from-top-2 fade-in duration-300">
+            <p class="text-[11px] font-bold text-red-400 uppercase tracking-wider bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 inline-block">
+              {errorMessage}
+            </p>
+          </div>
+        {/if}
       </div>
 
       <!-- Goal -->
@@ -211,6 +250,14 @@
 </main>
 
 <style>
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+    20%, 40%, 60%, 80% { transform: translateX(4px); }
+  }
+  .animate-shake {
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  }
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
   }

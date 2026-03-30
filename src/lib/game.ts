@@ -19,6 +19,12 @@ export interface GameState {
   score: number;
 }
 
+export interface ValidationResult {
+  isValid: boolean;
+  type: ConnectionType;
+  error?: string;
+}
+
 const initialState: GameState = {
   startWord: 'COLD',
   finishWord: 'WARM',
@@ -53,57 +59,62 @@ function createGame() {
         score: 0
       }));
     },
-    validateMove: async (guess: string): Promise<ConnectionType> => {
+    validateMove: async (guess: string): Promise<ValidationResult> => {
       const word = guess.toUpperCase();
-      if (!word) return 'unknown';
+      if (!word || word.length < 2) return { isValid: false, type: 'unknown' };
 
       let currentState: GameState | undefined;
       subscribe(s => currentState = s)();
-      if (!currentState || currentState.isGameOver) return 'unknown';
-      if (currentState.history.some(m => m.word === word)) return 'unknown';
+      if (!currentState || currentState.isGameOver) return { isValid: false, type: 'unknown', error: 'Game is over' };
+      
+      if (currentState.history.some(m => m.word === word)) {
+          return { isValid: false, type: 'unknown', error: `You've already used "${word}"!` };
+      }
 
       const prevWord = currentState.currentWord;
-      if (isOneLetterDifferent(prevWord, word)) return 'letter';
-      if (isAnagram(prevWord, word)) return 'anagram';
+      
+      // 1. Check Letter Change (Synchronous)
+      const diffs = getLetterDifferences(prevWord, word);
+      if (diffs === 1 && prevWord.length === word.length) {
+          return { isValid: true, type: 'letter' };
+      }
 
+      // 2. Check Anagram (Synchronous)
+      if (isAnagram(prevWord, word)) {
+          return { isValid: true, type: 'anagram' };
+      }
+
+      // 3. Check Dictionary & Relations (Asynchronous)
       const relations = await fetchRelations(prevWord);
-      if (relations.synonyms.includes(word.toLowerCase())) return 'synonym';
-      if (relations.antonyms.includes(word.toLowerCase())) return 'antonym';
+      if (relations.synonyms.includes(word.toLowerCase())) {
+          return { isValid: true, type: 'synonym' };
+      }
+      if (relations.antonyms.includes(word.toLowerCase())) {
+          return { isValid: true, type: 'antonym' };
+      }
 
-      return 'unknown';
+      // If not valid, try to guess the error
+      if (prevWord.length === word.length && diffs > 1 && diffs <= 3) {
+          return { isValid: false, type: 'unknown', error: `Close! You changed ${diffs} letters, but a Morph only allows 1.` };
+      }
+
+      // Final check: is it even a word?
+      const exists = await checkWordExists(word);
+      if (!exists) {
+          return { isValid: false, type: 'unknown', error: `"${word}" doesn't seem to be a valid English word.` };
+      }
+
+      return { isValid: false, type: 'unknown', error: `"${word}" is not a known synonym or antonym of "${prevWord}".` };
     },
     makeMove: async (guess: string) => {
       const word = guess.toUpperCase();
-      let type: ConnectionType = 'unknown';
-
-      // 1. Basic validation
-      let currentState: GameState | undefined;
-      subscribe(s => currentState = s)(); 
       
-      if (!currentState || currentState.isGameOver) return;
-      if (currentState.history.some(m => m.word === word)) return;
-
-      const prevWord = currentState.currentWord;
-      
-      // 2. Check Letter Change (Synchronous)
-      if (isOneLetterDifferent(prevWord, word)) {
-          type = 'letter';
-      } else if (isAnagram(prevWord, word)) {
-          type = 'anagram';
-      } else {
-          // 3. Check API for Synonyms/Antonyms
-          const relations = await fetchRelations(prevWord);
-          if (relations.synonyms.includes(word.toLowerCase())) {
-              type = 'synonym';
-          } else if (relations.antonyms.includes(word.toLowerCase())) {
-              type = 'antonym';
-          }
-      }
-
-      if (type === 'unknown') return;
+      // We can reuse validateMove here
+      const validation = await createGame().validateMove(guess);
+      if (!validation.isValid) return;
 
       update(s => {
-        const newHistory = [...s.history, { word, type, previousWord: prevWord, timestamp: Date.now() }];
+        const newHistory = [...s.history, { word, type: validation.type, previousWord: s.currentWord, timestamp: Date.now() }];
         const isGameOver = word === s.finishWord;
         return {
           ...s,
@@ -143,18 +154,26 @@ async function fetchRelations(word: string): Promise<{ synonyms: string[], anton
       antonyms: Array.from(new Set(antonyms)) 
     };
   } catch (e) {
-    console.error("API Error:", e);
     return { synonyms: [], antonyms: [] };
   }
 }
 
-function isOneLetterDifferent(word1: string, word2: string): boolean {
-  if (word1.length !== word2.length) return false;
+async function checkWordExists(word: string): Promise<boolean> {
+    try {
+        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+        return response.ok;
+    } catch {
+        return false;
+    }
+}
+
+function getLetterDifferences(word1: string, word2: string): number {
+  if (word1.length !== word2.length) return -1;
   let diffs = 0;
   for (let i = 0; i < word1.length; i++) {
     if (word1[i] !== word2[i]) diffs++;
   }
-  return diffs === 1;
+  return diffs;
 }
 
 function isAnagram(word1: string, word2: string): boolean {
