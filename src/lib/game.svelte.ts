@@ -18,8 +18,10 @@ export interface ValidationResult {
 }
 
 const CONFIG_KEY = 'word_connection_config';
+const STATE_KEY = 'word_connection_game_state';
 
 export class GameEngine {
+  // Game State
   startWord = $state('COLD');
   finishWord = $state('WARM');
   currentWord = $state('COLD');
@@ -27,7 +29,7 @@ export class GameEngine {
   isGameOver = $state(false);
   score = $state(0);
   
-  // Persisted Config
+  // Config
   #allowProfanity = $state(false);
   #randomWordLength = $state(4);
 
@@ -47,6 +49,7 @@ export class GameEngine {
 
   constructor() {
       this.loadConfig();
+      this.loadGameState();
       this.init();
   }
 
@@ -66,6 +69,32 @@ export class GameEngine {
           allowProfanity: this.#allowProfanity,
           randomWordLength: this.#randomWordLength
       }));
+  }
+
+  private saveGameState() {
+      localStorage.setItem(STATE_KEY, JSON.stringify({
+          startWord: this.startWord,
+          finishWord: this.finishWord,
+          currentWord: this.currentWord,
+          history: this.history,
+          isGameOver: this.isGameOver,
+          score: this.score
+      }));
+  }
+
+  private loadGameState() {
+      try {
+          const saved = localStorage.getItem(STATE_KEY);
+          if (saved) {
+              const parsed = JSON.parse(saved);
+              this.startWord = parsed.startWord;
+              this.finishWord = parsed.finishWord;
+              this.currentWord = parsed.currentWord;
+              this.history = parsed.history;
+              this.isGameOver = parsed.isGameOver;
+              this.score = parsed.score;
+          }
+      } catch (e) { console.error('Failed to load game state', e); }
   }
 
   async init() {
@@ -95,6 +124,7 @@ export class GameEngine {
       this.score = 0;
       this.#validSemanticMoves = { synonyms: [], antonyms: [] };
       this.#refreshSemanticMoves(start);
+      this.saveGameState();
   }
 
   async loadRandomJourney() {
@@ -122,6 +152,7 @@ export class GameEngine {
       this.isGameOver = false;
       this.score = 0;
       this.#refreshSemanticMoves(this.startWord);
+      this.saveGameState();
   }
 
   async validateMove(guess: string): Promise<ValidationResult> {
@@ -189,6 +220,7 @@ export class GameEngine {
       this.score++;
 
       this.#refreshSemanticMoves(word);
+      this.saveGameState();
   }
 }
 
