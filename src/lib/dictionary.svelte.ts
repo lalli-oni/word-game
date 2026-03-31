@@ -5,11 +5,12 @@ export interface DictionaryEntry {
   synonyms: string[];
   antonyms: string[];
   tags: string[];
+  rank: number;
 }
 
 class DictionaryService {
   private dbName = 'WordConnectionDB';
-  private dbVersion = 2;
+  private dbVersion = 3; // Bumped for rank field
   private db: IDBPDatabase | null = null;
   
   status = $state<'idle' | 'hydrating' | 'ready' | 'error'>('idle');
@@ -32,12 +33,16 @@ class DictionaryService {
             if (oldVersion < 2) {
               store.createIndex('by-length', 'length');
             }
+            
+            // Version 3 adds 'rank' field, no index needed yet but data needs refresh
           },
         });
 
         const count = await this.db.count('dictionary');
         const sample = await this.db.get('dictionary', 'cold');
-        if (count === 0 || (sample && sample.length === undefined)) {
+        
+        // Force hydration if rank is missing
+        if (count === 0 || (sample && sample.rank === undefined)) {
           await this.hydrate();
         } else {
           this.status = 'ready';
@@ -79,7 +84,7 @@ class DictionaryService {
 
       await tx.done;
       this.status = 'ready';
-      console.log(`Successfully hydrated ${words.length} words.`);
+      console.log(`Successfully hydrated ${words.length} words with ranks.`);
     } catch (error) {
       this.status = 'error';
       console.error('Hydration failed:', error);

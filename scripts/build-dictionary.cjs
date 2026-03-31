@@ -2,10 +2,20 @@ const fs = require('fs');
 const path = require('path');
 const WordNet = require('node-wordnet');
 const naughty = require('naughty-words');
+const subtlex = require('subtlex-word-frequencies');
 
 const wordnet = new WordNet();
 const dictionary = {};
 const allProfanity = new Set();
+const wordRanks = {};
+
+console.log('Loading frequency data...');
+subtlex.forEach((item, index) => {
+    wordRanks[item.word.toLowerCase()] = index + 1;
+});
+
+// Max rank + 1 for words not in SUBTLEX
+const DEFAULT_RANK = subtlex.length + 1;
 
 // Collect all English profanity
 Object.values(naughty).forEach(list => {
@@ -17,7 +27,6 @@ Object.values(naughty).forEach(list => {
 async function build() {
     console.log('Building dictionary from WordNet DB files...');
     
-    // WordNet DB paths
     const dictPath = path.join(__dirname, '../node_modules/wordnet-db/dict');
     const indexFiles = ['index.adj', 'index.adv', 'index.noun', 'index.verb'];
     
@@ -30,7 +39,7 @@ async function build() {
         const lines = content.split('\n');
         
         lines.forEach(line => {
-            if (line.startsWith('  ')) return; // Skip header
+            if (line.startsWith('  ')) return;
             const parts = line.split(' ');
             const lemma = parts[0];
             if (lemma && lemma.length >= 2 && !lemma.includes('_') && !lemma.includes('-')) {
@@ -40,7 +49,7 @@ async function build() {
     }
 
     const lemmas = Array.from(allLemmas);
-    console.log(`Extracted ${lemmas.length} unique lemmas. Processing relations...`);
+    console.log(`Extracted ${lemmas.length} unique lemmas. Processing relations and ranks...`);
 
     const batchSize = 500;
     for (let i = 0; i < lemmas.length; i += batchSize) {
@@ -58,9 +67,6 @@ async function build() {
                             synonyms.add(syn);
                         }
                     });
-                    
-                    // Note: Antonyms in node-wordnet require follow-up lookups for ptrs
-                    // For now, we'll focus on synonyms to keep the build time reasonable.
                 }
 
                 const tags = [];
@@ -71,11 +77,10 @@ async function build() {
                 dictionary[lemma] = {
                     synonyms: Array.from(synonyms),
                     antonyms: Array.from(antonyms),
-                    tags
+                    tags,
+                    rank: wordRanks[lemma] || DEFAULT_RANK
                 };
-            } catch (e) {
-                // Ignore individual lookup errors
-            }
+            } catch (e) {}
         }));
         
         if (i % 5000 === 0) {

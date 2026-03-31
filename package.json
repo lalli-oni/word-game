@@ -18,6 +18,7 @@
     "naughty-words": "^1.2.0",
     "node-wordnet": "^0.1.12",
     "postcss": "^8.5.8",
+    "subtlex-word-frequencies": "^2.0.0",
     "svelte": "^5.53.12",
     "svelte-check": "^4.4.5",
     "tailwindcss": "^4.2.2",

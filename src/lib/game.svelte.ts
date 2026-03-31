@@ -8,6 +8,7 @@ export interface Move {
   type: ConnectionType;
   previousWord?: string;
   timestamp: number;
+  obscurity?: number; // 0 (common) to 10 (obscure)
 }
 
 export interface ValidationResult {
@@ -15,6 +16,7 @@ export interface ValidationResult {
   type: ConnectionType;
   errors: string[];
   diffCount?: number;
+  obscurity?: number;
 }
 
 const CONFIG_KEY = 'word_connection_config';
@@ -25,7 +27,7 @@ export class GameEngine {
   startWord = $state('COLD');
   finishWord = $state('WARM');
   currentWord = $state('COLD');
-  history = $state<Move[]>([{ word: 'COLD', type: 'initial', timestamp: Date.now() }]);
+  history = $state<Move[]>([{ word: 'COLD', type: 'initial', timestamp: Date.now(), obscurity: 0 }]);
   isGameOver = $state(false);
   score = $state(0);
   
@@ -119,7 +121,7 @@ export class GameEngine {
       this.startWord = start;
       this.finishWord = journey.finishWord.toUpperCase();
       this.currentWord = start;
-      this.history = [{ word: start, type: 'initial', timestamp: Date.now() }];
+      this.history = [{ word: start, type: 'initial', timestamp: Date.now(), obscurity: 0 }];
       this.isGameOver = false;
       this.score = 0;
       this.#validSemanticMoves = { synonyms: [], antonyms: [] };
@@ -148,7 +150,7 @@ export class GameEngine {
 
   reset() {
       this.currentWord = this.startWord;
-      this.history = [{ word: this.startWord, type: 'initial', timestamp: Date.now() }];
+      this.history = [{ word: this.startWord, type: 'initial', timestamp: Date.now(), obscurity: 0 }];
       this.isGameOver = false;
       this.score = 0;
       this.#refreshSemanticMoves(this.startWord);
@@ -175,19 +177,21 @@ export class GameEngine {
           errors.push(`"${word}" is not in our dictionary.`);
       }
 
+      const obscurity = entry ? calculateObscurity(entry.rank) : 10;
+
       if (diffCount === 1 && prevWord.length === word.length && isVisible) {
-          return { isValid: true, type: 'letter', errors: [] };
+          return { isValid: true, type: 'letter', errors: [], obscurity };
       }
 
       if (isAnagram(prevWord, word) && isVisible) {
-          return { isValid: true, type: 'anagram', errors: [] };
+          return { isValid: true, type: 'anagram', errors: [], obscurity };
       }
 
       if (isVisible && this.#validSemanticMoves.synonyms.includes(word.toLowerCase())) {
-          return { isValid: true, type: 'synonym', errors: [] };
+          return { isValid: true, type: 'synonym', errors: [], obscurity };
       }
       if (isVisible && this.#validSemanticMoves.antonyms.includes(word.toLowerCase())) {
-          return { isValid: true, type: 'antonym', errors: [] };
+          return { isValid: true, type: 'antonym', errors: [], obscurity };
       }
 
       if (prevWord.length !== word.length) {
@@ -204,7 +208,8 @@ export class GameEngine {
           isValid: false, 
           type: 'unknown', 
           errors, 
-          diffCount: (isVisible && prevWord.length === word.length) ? diffCount : undefined 
+          diffCount: (isVisible && prevWord.length === word.length) ? diffCount : undefined,
+          obscurity
       };
   }
 
@@ -215,13 +220,33 @@ export class GameEngine {
 
       const prev = this.currentWord;
       this.currentWord = word;
-      this.history.push({ word, type: validation.type, previousWord: prev, timestamp: Date.now() });
+      this.history.push({ 
+          word, 
+          type: validation.type, 
+          previousWord: prev, 
+          timestamp: Date.now(),
+          obscurity: validation.obscurity
+      });
       this.isGameOver = (word === this.finishWord);
       this.score++;
 
       this.#refreshSemanticMoves(word);
       this.saveGameState();
   }
+}
+
+function calculateObscurity(rank: number): number {
+    if (rank <= 1000) return 0;
+    if (rank <= 5000) return 1;
+    if (rank <= 10000) return 2;
+    if (rank <= 20000) return 3;
+    if (rank <= 30000) return 4;
+    if (rank <= 40000) return 5;
+    if (rank <= 50000) return 6;
+    if (rank <= 60000) return 7;
+    if (rank <= 70000) return 8;
+    if (rank <= 80000) return 9;
+    return 10;
 }
 
 function getLetterDifferences(word1: string, word2: string): number {
