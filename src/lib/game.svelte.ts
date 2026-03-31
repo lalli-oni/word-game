@@ -34,6 +34,7 @@ export class GameEngine {
   isGameOver = $state(false);
   score = $state(0);
   allowProfanity = $state(false);
+  randomWordLength = $state(4);
   
   #validSemanticMoves = $state<{ synonyms: string[], antonyms: string[] }>({ synonyms: [], antonyms: [] });
 
@@ -71,12 +72,15 @@ export class GameEngine {
   }
 
   async loadRandomScenario() {
-      const start = await dictionaryService.getRandomWord();
-      let finish = await dictionaryService.getRandomWord();
+      let start = await dictionaryService.getRandomWord(this.randomWordLength);
+      let finish = await dictionaryService.getRandomWord(this.randomWordLength);
       
-      // Ensure words are different and somewhat same-ish length for a better challenge
-      while (finish === start || Math.abs(start.length - finish.length) > 2) {
-          finish = await dictionaryService.getRandomWord();
+      let attempts = 0;
+      // Ensure words are different and connected within 3 semantic steps
+      // 3 steps is quite broad given WordNet connections
+      while (attempts < 20 && (finish === start || !(await dictionaryService.areConnected(start, finish, 3)))) {
+          finish = await dictionaryService.getRandomWord(this.randomWordLength);
+          attempts++;
       }
 
       this.loadScenario({

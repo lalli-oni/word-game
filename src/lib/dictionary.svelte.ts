@@ -24,6 +24,7 @@ class DictionaryService {
             if (!db.objectStoreNames.contains('dictionary')) {
               const store = db.createObjectStore('dictionary', { keyPath: 'word' });
               store.createIndex('by-tag', 'tags', { multiEntry: true });
+              store.createIndex('by-length', 'length'); // We'll need to add length to values
             }
           },
         });
@@ -60,6 +61,7 @@ class DictionaryService {
       for (const word of words) {
         await store.put({
           word,
+          length: word.length, // Store length for indexed lookups
           ...data[word]
         });
         current++;
@@ -87,22 +89,64 @@ class DictionaryService {
     return !!entry;
   }
 
-  async getRandomWord(): Promise<string> {
+  async getRandomWord(length?: number): Promise<string> {
       if (!this.db) await this.init();
-      const count = await this.db!.count('dictionary');
-      const randomIndex = Math.floor(Math.random() * count);
       
-      // IndexedDB doesn't have a built-in "get by index" for random access without a cursor
-      // For ~80k words, a cursor skip is okay for a one-off action
       const tx = this.db!.transaction('dictionary', 'readonly');
       const store = tx.objectStore('dictionary');
-      let cursor = await store.openCursor();
       
-      if (randomIndex > 0) {
-          await cursor?.advance(randomIndex);
+      let cursor;
+      let count;
+
+      if (length) {
+          const index = store.index('by-length');
+          count = await index.count(length);
+          if (count === 0) return this.getRandomWord(); // Fallback
+          const randomIndex = Math.floor(Math.random() * count);
+          cursor = await index.openCursor(length);
+          if (randomIndex > 0) await cursor?.advance(randomIndex);
+      } else {
+          count = await store.count();
+          const randomIndex = Math.floor(Math.random() * count);
+          cursor = await store.openCursor();
+          if (randomIndex > 0) await cursor?.advance(randomIndex);
       }
       
       return cursor?.value.word.toUpperCase() || 'COLD';
+  }
+
+  // Simple BFS to check if two words are connected within N steps
+  // This is computationally expensive in IndexedDB but okay for small N
+  async areConnected(start: string, end: string, maxDepth = 3): Promise<boolean> {
+      if (start === end) return true;
+      
+      let queue = [start.toLowerCase()];
+      let visited = new Set([start.toLowerCase()]);
+      
+      for (let depth = 0; depth < maxDepth; depth++) {
+          const nextQueue = [];
+          for (const current of queue) {
+              const entry = await this.getEntry(current);
+              if (!entry) continue;
+
+              const neighbors = new Set([...entry.synonyms, ...entry.antonyms]);
+              
+              // Add morphs (calculation required)
+              // To keep this fast, we might skip morphs in the solvability check 
+              // or only check a subset. Semantic connections are more likely to bridge gaps.
+
+              for (const neighbor of neighbors) {
+                  if (neighbor === end.toLowerCase()) return true;
+                  if (!visited.has(neighbor)) {
+                      visited.add(neighbor);
+                      nextQueue.push(neighbor);
+                  }
+              }
+          }
+          queue = nextQueue;
+          if (queue.length === 0) break;
+      }
+      return false;
   }
 }
 
