@@ -2,6 +2,7 @@
   import { game, type ValidationResult } from './lib/game.svelte';
   import { journeys } from './lib/journeys';
   import { dictionaryService } from './lib/dictionary.svelte';
+  import NavButton from './lib/components/NavButton.svelte';
   import './app.css';
 
   let guess = $state('');
@@ -105,7 +106,20 @@
   function handleBackdropClick(e: MouseEvent, dialog: HTMLDialogElement) {
       if (e.target === dialog) dialog.close();
   }
+
+  function handleClickOutsideRandom(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (showRandomConfig && !target.closest('.random-config-container')) {
+          showRandomConfig = false;
+      }
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+      if (e.key === 'Escape') showRandomConfig = false;
+  }
 </script>
+
+<svelte:window onclick={handleClickOutsideRandom} onkeydown={handleKeydown} />
 
 {#if dictionaryService.status === 'hydrating'}
   <div class="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
@@ -135,42 +149,51 @@
 
     <div class="flex justify-between items-center px-4">
       <div class="flex gap-2">
-        <button on:click={() => levelsDialog.showModal()} class="text-xl bg-slate-800 hover:bg-slate-700 p-3 rounded-2xl border border-slate-700 shadow-xl transition-all active:scale-95 leading-none" title="Choose Journey">🗺️</button>
+        <NavButton onclick={() => levelsDialog.showModal()} title="Choose Journey">
+            <span>🗺️</span>
+        </NavButton>
         
-        <!-- Quick Random Challenge Button -->
-        <div class="relative group">
-            <button 
-                on:click={startRandom}
-                class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 p-3 px-4 rounded-2xl border-b-4 border-blue-800 shadow-xl transition-all active:scale-95 leading-none"
+        <div class="random-config-container relative flex items-center">
+            <NavButton 
+                onclick={startRandom}
+                title="Start Random Journey"
+                class="pr-10"
             >
-                <span>🔀</span>
-                <span>{game.randomWordLength}</span>
-            </button>
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <span class="text-xs font-black text-slate-400 font-mono">{game.randomWordLength}</span>
+                </div>
+            </NavButton>
             <button 
-                on:click={() => showRandomConfig = !showRandomConfig}
-                class="absolute -top-1 -right-1 w-5 h-5 bg-slate-700 rounded-full text-[10px] flex items-center justify-center border border-slate-600 hover:bg-slate-600"
+                onmouseenter={() => showRandomConfig = true}
+                onclick={(e) => { e.stopPropagation(); showRandomConfig = !showRandomConfig; }}
+                class="absolute right-2 w-6 h-6 rounded-lg text-[10px] flex items-center justify-center hover:bg-slate-600/50 transition-colors text-slate-500"
             >
                 ⚙️
             </button>
             
             {#if showRandomConfig}
-                <div class="absolute top-full left-0 mt-3 w-48 p-4 bg-slate-800 border-2 border-slate-700 rounded-2xl shadow-2xl z-50 animate-in fade-in slide-in-from-top-2">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Length</span>
-                        <span class="text-lg font-black text-blue-400">{game.randomWordLength}</span>
+                <div class="absolute top-full left-0 mt-3 w-56 p-5 bg-slate-800 border-2 border-slate-700 rounded-3xl shadow-2xl z-50 animate-in fade-in slide-in-from-top-2">
+                    <div class="flex justify-between items-end mb-4">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Word Length</span>
+                        <span class="text-2xl font-black text-blue-400 leading-none">{game.randomWordLength}</span>
                     </div>
-                    <input type="range" min="3" max="12" bind:value={game.randomWordLength} class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500" />
-                    <button on:click={() => showRandomConfig = false} class="w-full mt-3 text-[9px] font-black uppercase text-slate-500 hover:text-white">Close</button>
+                    <input type="range" min="3" max="12" bind:value={game.randomWordLength} class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500 mb-4" />
+                    <button onclick={() => showRandomConfig = false} class="w-full py-2 bg-slate-900/50 rounded-xl text-[9px] font-black uppercase text-slate-500 hover:text-white transition-colors border border-slate-700">Accept</button>
                 </div>
             {/if}
         </div>
 
-        <button on:click={() => settingsDialog.showModal()} class="text-xl bg-slate-800 hover:bg-slate-700 p-3 rounded-2xl border border-slate-700 shadow-xl transition-all active:scale-95 leading-none" title="Settings">⚙️</button>
+        <NavButton onclick={() => settingsDialog.showModal()} title="Settings">
+            <span>⚙️</span>
+        </NavButton>
       </div>
       
-      <div class="flex items-center gap-2 bg-slate-800/50 p-2 px-4 rounded-2xl border border-slate-700">
-        <div class="text-3xl font-black text-white italic">{game.score}</div>
-        <span class="text-2xl">🏆</span>
+      <div class="flex items-center gap-3 pr-2">
+        <div class="text-4xl font-black text-white italic tracking-tighter">{game.score}</div>
+        <span class="text-3xl filter drop-shadow-lg">🏆</span>
       </div>
     </div>
   </header>
@@ -204,7 +227,7 @@
             <button on:click={() => settingsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
         </div>
         <label class="flex items-center justify-between cursor-pointer group">
-            <span class="text-sm font-bold text-slate-300 group-hover:text-white">Untamed Vocabulary (Profanity)</span>
+            <span class="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">Untamed Vocabulary (Profanity)</span>
             <div class="relative inline-flex items-center">
                 <input type="checkbox" bind:checked={game.allowProfanity} class="sr-only peer">
                 <div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
@@ -254,7 +277,7 @@
         <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter">Success</div>
         <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6">Journey completed in {game.score} steps</p>
         <div class="flex gap-3 justify-center">
-          <button on:click={() => game.reset()} class="bg-slate-800 hover:bg-slate-700 text-[10px] font-black px-8 py-3 rounded-xl border border-slate-700 transition-all active:scale-95">RETRY</button>
+          <button on:click={() => game.reset()} class="bg-slate-800 hover:bg-slate-700 text-[10px] font-black px-8 py-3 rounded-xl border border-slate-700 transition-all active:scale-95 shadow-xl">RETRY</button>
           <button on:click={() => levelsDialog.showModal()} class="bg-emerald-600 hover:bg-emerald-500 text-[10px] font-black px-8 py-3 rounded-xl shadow-lg shadow-emerald-900/40 active:scale-95">NEW JOURNEY</button>
         </div>
       </div>
