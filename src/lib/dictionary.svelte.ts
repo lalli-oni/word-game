@@ -10,7 +10,7 @@ export interface DictionaryEntry {
 
 class DictionaryService {
   private dbName = 'WordConnectionDB';
-  private dbVersion = 2; // Keep at 2 for now, or bump if schema changed significantly
+  private dbVersion = 2;
   private db: IDBPDatabase | null = null;
   
   status = $state<'idle' | 'hydrating' | 'ready' | 'error'>('idle');
@@ -21,10 +21,8 @@ class DictionaryService {
     if (this.db) return;
 
     try {
-        console.log('Initializing IndexedDB...');
         this.db = await openDB(this.dbName, this.dbVersion, {
           upgrade(db, oldVersion, newVersion, transaction) {
-            console.log(`Upgrading DB from ${oldVersion} to ${newVersion}`);
             let store;
             if (oldVersion < 1) {
               store = db.createObjectStore('dictionary', { keyPath: 'word' });
@@ -40,13 +38,9 @@ class DictionaryService {
         });
 
         const count = await this.db.count('dictionary');
-        console.log(`Current word count in DB: ${count}`);
-        
-        // Safety check for schema fields
         const sample = count > 0 ? await this.db.get('dictionary', 'cold') : null;
         
         if (count === 0 || (sample && sample.length === undefined)) {
-          console.log('DB empty or schema outdated. Starting hydration...');
           await this.hydrate();
         } else {
           this.status = 'ready';
@@ -54,8 +48,7 @@ class DictionaryService {
     } catch (e: any) {
         this.status = 'error';
         this.errorMessage = e.message || 'Unknown database error';
-        console.error('DB Init failed:', e);
-        throw e; // Bubble up
+        throw e;
     }
   }
 
@@ -65,14 +58,12 @@ class DictionaryService {
     this.errorMessage = null;
 
     try {
-      console.log('Fetching dictionary.json...');
       const response = await fetch('dictionary.json');
-      if (!response.ok) throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
       
       const data = await response.json();
       const words = Object.keys(data);
       const total = words.length;
-      console.log(`Fetched ${total} words. Starting IDB transaction...`);
       
       const tx = this.db!.transaction('dictionary', 'readwrite');
       const store = tx.objectStore('dictionary');
@@ -87,38 +78,27 @@ class DictionaryService {
         current++;
         if (current % 2000 === 0) {
             this.progress = Math.round((current / total) * 100);
-            // Non-blocking progress update might be needed for smoother UI
         }
       }
 
       await tx.done;
       this.status = 'ready';
-      console.log(`Successfully hydrated ${words.length} words.`);
     } catch (error: any) {
       this.status = 'error';
-      this.errorMessage = error.message || 'Hydration failed';
-      console.error('Hydration failed:', error);
+      this.errorMessage = error.message;
       throw error;
     }
   }
 
   async getEntry(word: string): Promise<DictionaryEntry | undefined> {
-    if (this.status === 'error') throw new Error(this.errorMessage || 'Dictionary error');
     if (!this.db) await this.init();
     return await this.db!.get('dictionary', word.toLowerCase());
   }
 
-  async checkExists(word: string): Promise<boolean> {
-    const entry = await this.getEntry(word);
-    return !!entry;
-  }
-
   async getRandomWord(length?: number): Promise<string> {
       if (!this.db) await this.init();
-      
       const tx = this.db!.transaction('dictionary', 'readonly');
       const store = tx.objectStore('dictionary');
-      
       let cursor;
       let count;
 
@@ -135,36 +115,73 @@ class DictionaryService {
           cursor = await store.openCursor();
           if (randomIndex > 0) await cursor?.advance(randomIndex);
       }
-      
       return cursor?.value.word.toUpperCase() || 'COLD';
   }
 
-  async areConnected(start: string, end: string, maxDepth = 3): Promise<boolean> {
-      if (start === end) return true;
-      
-      let queue = [start.toLowerCase()];
-      let visited = new Set([start.toLowerCase()]);
-      
-      for (let depth = 0; depth < maxDepth; depth++) {
-          const nextQueue = [];
-          for (const current of queue) {
-              const entry = await this.getEntry(current);
-              if (!entry) continue;
+  // Robust Shortest Path Finder (BFS)
+  async findShortestPath(start: string, end: string, maxSteps = 6): Promise<string[] | null> {
+      start = start.toLowerCase();
+      end = end.toLowerCase();
+      if (start === end) return [start];
 
-              const neighbors = new Set([...entry.synonyms, ...entry.antonyms]);
+      const queue: [string, string[]][] = [[start, [start]]];
+      const visited = new Set([start]);
 
-              for (const neighbor of neighbors) {
-                  if (neighbor === end.toLowerCase()) return true;
-                  if (!visited.has(neighbor)) {
-                      visited.add(neighbor);
-                      nextQueue.push(neighbor);
-                  }
+      // Optimization: Pre-fetch all words of the same length for morph/anagram checks
+      const sameLengthWords = await this.getWordsOfLength(start.length);
+
+      while (queue.length > 0) {
+          const [current, path] = queue.shift()!;
+          if (path.length > maxSteps) continue;
+
+          const entry = await this.getEntry(current);
+          if (!entry) continue;
+
+          // Collect all potential neighbors
+          const neighbors = new Set([
+              ...entry.synonyms,
+              ...entry.antonyms
+          ]);
+
+          // Add morphs and anagrams from the same-length list
+          for (const candidate of sameLengthWords) {
+              if (candidate === current) continue;
+              if (this.isOneLetterDifferent(current, candidate) || this.isAnagram(current, candidate)) {
+                  neighbors.add(candidate);
               }
           }
-          queue = nextQueue;
-          if (queue.length === 0) break;
+
+          for (const neighbor of neighbors) {
+              if (neighbor === end) return [...path, neighbor];
+              if (!visited.has(neighbor)) {
+                  visited.add(neighbor);
+                  queue.push([neighbor, [...path, neighbor]]);
+              }
+          }
       }
-      return false;
+
+      return null;
+  }
+
+  private async getWordsOfLength(len: number): Promise<string[]> {
+      const tx = this.db!.transaction('dictionary', 'readonly');
+      const index = tx.objectStore('dictionary').index('by-length');
+      return await index.getAllKeys(len) as string[];
+  }
+
+  private isOneLetterDifferent(w1: string, w2: string): boolean {
+      if (w1.length !== w2.length) return false;
+      let diffs = 0;
+      for (let i = 0; i < w1.length; i++) {
+          if (w1[i] !== w2[i]) diffs++;
+          if (diffs > 1) return false;
+      }
+      return diffs === 1;
+  }
+
+  private isAnagram(w1: string, w2: string): boolean {
+      if (w1.length !== w2.length || w1 === w2) return false;
+      return w1.split('').sort().join('') === w2.split('').sort().join('');
   }
 }
 

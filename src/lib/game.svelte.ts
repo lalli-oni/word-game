@@ -8,7 +8,7 @@ export interface Move {
   type: ConnectionType;
   previousWord?: string;
   timestamp: number;
-  obscurity?: number; // 0 (common) to 10 (obscure)
+  obscurity?: number;
 }
 
 export interface ValidationResult {
@@ -23,15 +23,14 @@ const CONFIG_KEY = 'word_connection_config';
 const STATE_KEY = 'word_connection_game_state';
 
 export class GameEngine {
-  // Game State
   startWord = $state('COLD');
   finishWord = $state('WARM');
   currentWord = $state('COLD');
   history = $state<Move[]>([{ word: 'COLD', type: 'initial', timestamp: Date.now(), obscurity: 0 }]);
   isGameOver = $state(false);
   score = $state(0);
+  isSolving = $state(false);
   
-  // Persisted Config
   #allowProfanity = $state(false);
   #randomWordLength = $state(4);
   #randomMaxObscurity = $state(10);
@@ -143,8 +142,14 @@ export class GameEngine {
       let finish = await dictionaryService.getRandomWord(this.#randomWordLength);
       
       let attempts = 0;
-      while (attempts < 20 && (finish === start || !(await dictionaryService.areConnected(start, finish, 3)))) {
+      // Use the solver to guarantee a short path exists (max 5 steps for generation)
+      while (attempts < 30) {
+          start = await dictionaryService.getRandomWord(this.#randomWordLength);
           finish = await dictionaryService.getRandomWord(this.#randomWordLength);
+          if (start === finish) continue;
+          
+          const path = await dictionaryService.findShortestPath(start, finish, 5);
+          if (path && path.length >= 3) break; // Ensure it's not TOO easy (at least 2 moves)
           attempts++;
       }
 
@@ -155,6 +160,26 @@ export class GameEngine {
           finishWord: finish,
           difficulty: 'medium'
       });
+  }
+
+  async solve() {
+      if (this.isGameOver || this.isSolving) return;
+      this.isSolving = true;
+
+      const path = await dictionaryService.findShortestPath(this.currentWord, this.finishWord, 8);
+      if (!path) {
+          console.error("No path found!");
+          this.isSolving = false;
+          return;
+      }
+
+      // Animate the solution
+      for (let i = 1; i < path.length; i++) {
+          await new Promise(r => setTimeout(r, 600));
+          await this.makeMove(path[i]);
+      }
+      
+      this.isSolving = false;
   }
 
   reset() {
@@ -191,7 +216,7 @@ export class GameEngine {
 
       const prevWord = this.currentWord;
       const errors: string[] = [];
-      const diffCount = getLetterDifferences(prevWord, word);
+      const diffCount = this.getLetterDifferences(prevWord, word);
       
       const entry = await dictionaryService.getEntry(word);
       const isVisible = entry && (this.#allowProfanity || !entry.tags.includes('profanity'));
@@ -206,7 +231,7 @@ export class GameEngine {
           return { isValid: true, type: 'letter', errors: [], obscurity };
       }
 
-      if (isAnagram(prevWord, word) && isVisible) {
+      if (this.isAnagram(prevWord, word) && isVisible) {
           return { isValid: true, type: 'anagram', errors: [], obscurity };
       }
 
@@ -256,20 +281,20 @@ export class GameEngine {
       this.#refreshSemanticMoves(word);
       this.saveGameState();
   }
-}
 
-function getLetterDifferences(word1: string, word2: string): number {
-  if (word1.length !== word2.length) return -1;
-  let diffs = 0;
-  for (let i = 0; i < word1.length; i++) {
-    if (word1[i] !== word2[i]) diffs++;
+  getLetterDifferences(word1: string, word2: string): number {
+    if (word1.length !== word2.length) return -1;
+    let diffs = 0;
+    for (let i = 0; i < word1.length; i++) {
+      if (word1[i] !== word2[i]) diffs++;
+    }
+    return diffs;
   }
-  return diffs;
-}
 
-function isAnagram(word1: string, word2: string): boolean {
-    if (word1 === word2 || word1.length !== word2.length) return false;
-    return word1.split('').sort().join('') === word2.split('').sort().join('');
+  isAnagram(word1: string, word2: string): boolean {
+      if (word1 === word2 || word1.length !== word2.length) return false;
+      return word1.split('').sort().join('') === word2.split('').sort().join('');
+  }
 }
 
 export const game = new GameEngine();
