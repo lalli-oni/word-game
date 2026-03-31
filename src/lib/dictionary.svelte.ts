@@ -9,7 +9,7 @@ export interface DictionaryEntry {
 
 class DictionaryService {
   private dbName = 'WordConnectionDB';
-  private dbVersion = 2; // Bumped version to trigger upgrade for by-length index
+  private dbVersion = 2;
   private db: IDBPDatabase | null = null;
   
   status = $state<'idle' | 'hydrating' | 'ready' | 'error'>('idle');
@@ -20,13 +20,13 @@ class DictionaryService {
 
     try {
         this.db = await openDB(this.dbName, this.dbVersion, {
-          upgrade(db, oldVersion) {
+          upgrade(db, oldVersion, newVersion, transaction) {
             let store;
             if (oldVersion < 1) {
               store = db.createObjectStore('dictionary', { keyPath: 'word' });
               store.createIndex('by-tag', 'tags', { multiEntry: true });
             } else {
-              store = db.transaction.objectStore('dictionary');
+              store = transaction.objectStore('dictionary');
             }
 
             if (oldVersion < 2) {
@@ -36,9 +36,6 @@ class DictionaryService {
         });
 
         const count = await this.db.count('dictionary');
-        // We also need to check if the 'length' field exists in current data.
-        // If we just added the index, we might need to re-hydrate or update data.
-        // Let's check a sample.
         const sample = await this.db.get('dictionary', 'cold');
         if (count === 0 || (sample && sample.length === undefined)) {
           await this.hydrate();
@@ -111,7 +108,7 @@ class DictionaryService {
       if (length) {
           const index = store.index('by-length');
           count = await index.count(length);
-          if (count === 0) return this.getRandomWord(); // Fallback
+          if (count === 0) return this.getRandomWord();
           const randomIndex = Math.floor(Math.random() * count);
           cursor = await index.openCursor(length);
           if (randomIndex > 0) await cursor?.advance(randomIndex);
