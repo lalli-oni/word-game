@@ -158,35 +158,28 @@
             <span>🗺️</span>
         </NavButton>
         
-        <div class="random-config-container relative flex items-center">
+        <div 
+            class="random-config-container relative flex items-center group"
+            onmouseenter={() => showRandomConfig = true}
+            onmouseleave={() => showRandomConfig = false}
+        >
             <NavButton 
                 onclick={startRandom}
                 title="Start Random Journey"
-                class="pr-10"
             >
                 <div class="flex items-center gap-2">
-                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                    </svg>
+                    <span class="text-xl">🎲</span>
                     <span class="text-xs font-black text-slate-400 font-mono">{game.randomWordLength}</span>
                 </div>
             </NavButton>
-            <button 
-                onmouseenter={() => showRandomConfig = true}
-                onclick={(e) => { e.stopPropagation(); showRandomConfig = !showRandomConfig; }}
-                class="absolute right-2 w-6 h-6 rounded-lg text-[10px] flex items-center justify-center hover:bg-slate-600/50 transition-colors text-slate-500"
-            >
-                ⚙️
-            </button>
             
             {#if showRandomConfig}
                 <div class="absolute top-full left-0 mt-3 w-56 p-5 bg-slate-800 border-2 border-slate-700 rounded-3xl shadow-2xl z-50 animate-in fade-in slide-in-from-top-2">
-                    <div class="flex justify-between items-end mb-4">
-                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Word Length</span>
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-xl font-black uppercase tracking-tighter text-slate-400">Length</span>
                         <span class="text-2xl font-black text-blue-400 leading-none">{game.randomWordLength}</span>
                     </div>
-                    <input type="range" min="3" max="12" bind:value={game.randomWordLength} class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500 mb-4" />
-                    <button onclick={() => showRandomConfig = false} class="w-full py-2 bg-slate-900/50 rounded-xl text-[9px] font-black uppercase text-slate-500 hover:text-white transition-colors border border-slate-700">Accept</button>
+                    <input type="range" min="3" max="12" bind:value={game.randomWordLength} class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500" />
                 </div>
             {/if}
         </div>
@@ -251,7 +244,6 @@
 
   <!-- Game Path -->
   <div class="w-full max-w-lg flex flex-col gap-3 pr-2">
-    <!-- Start Word -->
     <div class="flex gap-3 items-center">
       <div class={spineBase}>
         <div class={labelBase} title="Start">🟢</div>
@@ -262,7 +254,6 @@
       </div>
     </div>
 
-    <!-- History -->
     <div class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto custom-scrollbar">
       {#each game.history.slice(1) as move, i}
         <div class="flex gap-3 items-center animate-in fade-in slide-in-from-left-4 duration-300">
@@ -295,7 +286,6 @@
         </div>
       </div>
     {:else}
-      <!-- Input -->
       <div class="flex flex-col gap-2">
         <div class="flex gap-3 items-center {isShaking ? 'animate-shake' : ''}">
           <div class={spineBase}>
@@ -359,8 +349,8 @@
     {/if}
   </div>
 
-  <section class="mt-12 max-w-lg w-full px-4">
-    <div class="grid grid-cols-4 gap-4">
+  <section class="mt-12 max-w-lg w-full px-4 text-center">
+    <div class="grid grid-cols-4 gap-4 mb-4">
       {#each legendItems as item}
         <div class="group relative flex flex-col items-center cursor-help">
           <div class="w-full h-1.5 {item.color} rounded-full mb-2 opacity-40 group-hover:opacity-100 transition-all group-hover:scale-y-150"></div>
