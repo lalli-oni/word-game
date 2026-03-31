@@ -26,6 +26,8 @@ export interface ValidationResult {
   diffCount?: number;
 }
 
+const CONFIG_KEY = 'word_connection_config';
+
 export class GameEngine {
   startWord = $state('COLD');
   finishWord = $state('WARM');
@@ -33,13 +35,39 @@ export class GameEngine {
   history = $state<Move[]>([{ word: 'COLD', type: 'initial', timestamp: Date.now() }]);
   isGameOver = $state(false);
   score = $state(0);
+  
+  // Persisted Config
   allowProfanity = $state(false);
   randomWordLength = $state(4);
   
   #validSemanticMoves = $state<{ synonyms: string[], antonyms: string[] }>({ synonyms: [], antonyms: [] });
 
   constructor() {
+      this.loadConfig();
       this.init();
+
+      // Save config when it changes
+      $effect(() => {
+          this.saveConfig();
+      });
+  }
+
+  private loadConfig() {
+      try {
+          const saved = localStorage.getItem(CONFIG_KEY);
+          if (saved) {
+              const parsed = JSON.parse(saved);
+              this.allowProfanity = parsed.allowProfanity ?? false;
+              this.randomWordLength = parsed.randomWordLength ?? 4;
+          }
+      } catch (e) { console.error('Failed to load config', e); }
+  }
+
+  private saveConfig() {
+      localStorage.setItem(CONFIG_KEY, JSON.stringify({
+          allowProfanity: this.allowProfanity,
+          randomWordLength: this.randomWordLength
+      }));
   }
 
   async init() {
@@ -76,8 +104,6 @@ export class GameEngine {
       let finish = await dictionaryService.getRandomWord(this.randomWordLength);
       
       let attempts = 0;
-      // Ensure words are different and connected within 3 semantic steps
-      // 3 steps is quite broad given WordNet connections
       while (attempts < 20 && (finish === start || !(await dictionaryService.areConnected(start, finish, 3)))) {
           finish = await dictionaryService.getRandomWord(this.randomWordLength);
           attempts++;
@@ -114,34 +140,36 @@ export class GameEngine {
       const diffCount = getLetterDifferences(prevWord, word);
       
       const entry = await dictionaryService.getEntry(word);
-      if (!entry) {
+      
+      // Profanity masking: If profane and filter is ON, treat as non-existent
+      const isVisible = entry && (this.allowProfanity || !entry.tags.includes('profanity'));
+
+      if (!isVisible) {
           errors.push(`"${word}" is not in our dictionary.`);
-      } else if (!this.allowProfanity && entry.tags.includes('profanity')) {
-          errors.push(`"${word}" is a restricted word.`);
       }
 
-      if (diffCount === 1 && prevWord.length === word.length && entry && (this.allowProfanity || !entry.tags.includes('profanity'))) {
+      if (diffCount === 1 && prevWord.length === word.length && isVisible) {
           return { isValid: true, type: 'letter', errors: [] };
       }
 
-      if (isAnagram(prevWord, word) && entry && (this.allowProfanity || !entry.tags.includes('profanity'))) {
+      if (isAnagram(prevWord, word) && isVisible) {
           return { isValid: true, type: 'anagram', errors: [] };
       }
 
-      if (this.#validSemanticMoves.synonyms.includes(word.toLowerCase())) {
+      if (isVisible && this.#validSemanticMoves.synonyms.includes(word.toLowerCase())) {
           return { isValid: true, type: 'synonym', errors: [] };
       }
-      if (this.#validSemanticMoves.antonyms.includes(word.toLowerCase())) {
+      if (isVisible && this.#validSemanticMoves.antonyms.includes(word.toLowerCase())) {
           return { isValid: true, type: 'antonym', errors: [] };
       }
 
       if (prevWord.length !== word.length) {
-          errors.push('Word length must match for a Morph or Anagram.');
+          if (isVisible) errors.push('Word length must match for a Morph or Anagram.');
       } else if (diffCount > 1) {
-          errors.push(`A Morph only allows 1 letter change (you changed ${diffCount}).`);
+          if (isVisible) errors.push(`A Morph only allows 1 letter change (you changed ${diffCount}).`);
       }
 
-      if (entry) {
+      if (isVisible) {
           errors.push(`"${word}" is not a known synonym or antonym of "${prevWord}".`);
       }
 
@@ -149,7 +177,7 @@ export class GameEngine {
           isValid: false, 
           type: 'unknown', 
           errors, 
-          diffCount: prevWord.length === word.length ? diffCount : undefined 
+          diffCount: (isVisible && prevWord.length === word.length) ? diffCount : undefined 
       };
   }
 
