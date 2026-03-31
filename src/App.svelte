@@ -11,6 +11,11 @@
   let isShaking = $state(false);
   let showRandomConfig = $state(false);
 
+  // Tooltip tracking
+  let mouseX = $state(0);
+  let mouseY = $state(0);
+  let activeObscurity: number | null = $state(null);
+
   let levelsDialog: HTMLDialogElement;
   let settingsDialog: HTMLDialogElement;
 
@@ -108,13 +113,6 @@
       if (e.target === dialog) dialog.close();
   }
 
-  function handleClickOutsideRandom(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      if (showRandomConfig && !target.closest('.random-config-container')) {
-          showRandomConfig = false;
-      }
-  }
-
   function handleKeydown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
           showRandomConfig = false;
@@ -129,9 +127,14 @@
       if (val <= 6) return 'Rare';
       return 'Obscure';
   }
+
+  function handleMouseMove(e: MouseEvent) {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+  }
 </script>
 
-<svelte:window onclick={handleClickOutsideRandom} onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} onmousemove={handleMouseMove} />
 
 {#if dictionaryService.status === 'hydrating'}
   <div class="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
@@ -149,11 +152,25 @@
   </div>
 {/if}
 
+<!-- Cursor-following Obscurity Tooltip -->
+{#if activeObscurity !== null}
+    <div 
+        class="fixed pointer-events-none z-[60] bg-slate-800 border-2 border-slate-700 p-3 rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-100 flex flex-col items-center gap-1"
+        style="left: {mouseX + 15}px; top: {mouseY + 15}px"
+    >
+        <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Rarity Rank</span>
+        <div class="flex items-baseline gap-1">
+            <span class="text-2xl font-black text-white leading-none">{activeObscurity}</span>
+            <span class="text-xs font-bold text-slate-400 uppercase">{getObscurityLabel(activeObscurity)}</span>
+        </div>
+    </div>
+{/if}
+
 <main class="min-h-screen bg-slate-900 text-white flex flex-col items-center p-4">
   <header class="mb-12 text-center relative w-full max-w-lg">
     <div class="flex flex-col items-center mb-10 animate-in fade-in zoom-in duration-700">
         <div class="flex items-center gap-2">
-            <span class="text-5xl font-black bg-white text-slate-900 px-3 py-1 rounded-2xl transform -rotate-3 shadow-[4px_4px_0px_#3b82f6] border-2 border-slate-900">WORD</span>
+            <span class="text-5xl font-black bg-white text-slate-900 px-3 py-1 rounded-2xl transform -rotate-3 shadow-[4px_4px_0px_#3b82f6] border-2 border-slate-900 border-b-4 border-r-4">WORD</span>
             <div class="w-12 h-0.5 border-t-4 border-dashed border-slate-700 self-end mb-4"></div>
         </div>
         <span class="text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-blue-400 to-emerald-400 transform rotate-2 -mt-2 drop-shadow-2xl">JOURNEY</span>
@@ -165,17 +182,18 @@
             <span>🗺️</span>
         </NavButton>
         
-        <!-- Refined Random Combo Button -->
-        <div class="random-config-container relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-visible">
+        <!-- Combo Random Button -->
+        <div class="random-config-container relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-visible h-[52px]">
             <button 
                 onclick={startRandom}
                 title="Start Random Journey"
-                class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 p-3 px-4 rounded-l-2xl border-r border-blue-700 transition-all active:scale-95 leading-none shrink-0"
+                class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 h-full px-4 rounded-l-2xl border-r border-blue-700 transition-all active:scale-95 leading-none shrink-0"
             >
                 <span class="text-lg">🎲</span>
                 <span class="font-mono text-base">{game.randomWordLength}</span>
             </button>
             <button 
+                onmouseenter={() => showRandomConfig = true}
                 onclick={(e) => { e.stopPropagation(); showRandomConfig = !showRandomConfig; }}
                 class="px-2 h-full hover:bg-slate-700 transition-colors text-slate-500 rounded-r-2xl"
             >
@@ -185,18 +203,21 @@
             </button>
             
             {#if showRandomConfig}
-                <div class="absolute top-full left-0 right-0 mt-3 p-6 bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 w-64">
+                <div 
+                    class="absolute top-full left-0 right-0 mt-3 p-6 bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 w-64"
+                    onmouseleave={() => showRandomConfig = false}
+                >
                     <div class="space-y-6">
                         <div>
                             <div class="flex justify-between items-end mb-3">
-                                <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Length</span>
+                                <span class="text-xl font-black uppercase tracking-tighter text-slate-400">Length</span>
                                 <span class="text-2xl font-black text-blue-400 leading-none">{game.randomWordLength}</span>
                             </div>
                             <input type="range" min="3" max="12" bind:value={game.randomWordLength} class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500" />
                         </div>
                         <div>
                             <div class="flex justify-between items-end mb-3">
-                                <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Max Obscurity</span>
+                                <span class="text-xl font-black uppercase tracking-tighter text-slate-400">Max Obscurity</span>
                                 <span class="text-xl font-black text-purple-400 leading-none">{getObscurityLabel(game.randomMaxObscurity)}</span>
                             </div>
                             <input type="range" min="0" max="10" bind:value={game.randomMaxObscurity} class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500" />
@@ -220,14 +241,14 @@
 
   <!-- Journey Select Dialog -->
   <dialog bind:this={levelsDialog} onclick={(e) => handleBackdropClick(e, levelsDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-lg outline-none">
-    <div class="bg-slate-800 border border-slate-700 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-        <div class="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
+    <div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+        <div class="p-6 border-b-2 border-slate-700 flex justify-between items-center bg-slate-800/50">
             <h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Select Journey</h2>
             <button onclick={() => levelsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
         </div>
         <div class="overflow-y-auto custom-scrollbar p-4 flex flex-col gap-2">
             {#each journeys as s}
-              <button onclick={() => selectJourney(s)} class="w-full text-left p-5 hover:bg-slate-700/50 border border-slate-700/50 rounded-2xl transition-all group">
+              <button onclick={() => selectJourney(s)} class="w-full text-left p-5 bg-slate-900/30 hover:bg-slate-700 border-2 border-slate-700/50 rounded-2xl transition-all group">
                 <div class="flex justify-between items-center mb-1">
                   <span class="font-bold text-slate-200 group-hover:text-blue-400">{s.name}</span>
                   <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-900 text-slate-500 border border-slate-700">{s.difficulty}</span>
@@ -241,7 +262,7 @@
 
   <!-- Settings Dialog -->
   <dialog bind:this={settingsDialog} onclick={(e) => handleBackdropClick(e, settingsDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-md outline-none">
-    <div class="bg-slate-800 border border-slate-700 rounded-[2rem] shadow-2xl p-8">
+    <div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl p-8">
         <div class="flex justify-between items-center mb-8">
             <h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Gear</h2>
             <button onclick={() => settingsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
@@ -263,7 +284,11 @@
       <div class={spineBase}>
         <div class={labelBase} title="Start">🟢</div>
       </div>
-      <div class={cardBase}>
+      <div 
+        class={cardBase}
+        onmouseenter={() => activeObscurity = 0}
+        onmouseleave={() => activeObscurity = null}
+      >
         <span class="font-mono text-2xl font-black tracking-[0.2em] text-slate-400">{game.startWord}</span>
         <div class="w-2 h-2 rounded-full bg-slate-600"></div>
       </div>
@@ -276,17 +301,15 @@
           <div class={spineBase}>
             <div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg">{i + 1}</div>
           </div>
-          <div class="{cardBase} group relative border-l-4 shadow-lg 
-            {move.type === 'letter' ? 'border-l-blue-500' :
-             move.type === 'synonym' ? 'border-l-purple-500' :
-             move.type === 'antonym' ? 'border-l-orange-500' : 
-             move.type === 'anagram' ? 'border-l-pink-500' : 'border-l-red-500'}">
-            
-            <!-- Rarity Badge/Tooltip -->
-            <div class="absolute -top-2 -right-2 invisible group-hover:visible bg-slate-700 border border-slate-600 p-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-300 z-30 shadow-2xl animate-in fade-in slide-in-from-bottom-1">
-                {getObscurityLabel(move.obscurity || 0)}
-            </div>
-
+          <div 
+            class="{cardBase} border-l-4 shadow-lg"
+            class:border-l-blue-500={move.type === 'letter'}
+            class:border-l-purple-500={move.type === 'synonym'}
+            class:border-l-orange-500={move.type === 'antonym'}
+            class:border-l-pink-500={move.type === 'anagram'}
+            onmouseenter={() => activeObscurity = move.obscurity || 0}
+            onmouseleave={() => activeObscurity = null}
+          >
             <span class="font-mono text-2xl tracking-[0.15em] font-bold">
               {#each move.word.split('') as char, i}
                 <span class={getCharacterClasses(char, i, move)}>{char}</span>
@@ -299,7 +322,7 @@
     </div>
 
     {#if game.isGameOver}
-      <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border border-emerald-500/30 rounded-3xl backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl">
+      <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-3xl backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl">
         <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter">Success</div>
         <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6">Journey completed in {game.score} steps</p>
         <div class="flex gap-3 justify-center">
