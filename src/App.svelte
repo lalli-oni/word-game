@@ -189,31 +189,30 @@
             <span>🗺️</span>
         </NavButton>
         
-        <!-- Combo Random Button -->
+        <!-- Refined Random Combo Button -->
         <div 
-            class="random-config-container relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-visible h-[52px]"
+            class="random-config-container relative flex flex-col group"
+            onmouseenter={() => showRandomConfig = true}
             onmouseleave={() => showRandomConfig = false}
         >
-            <button 
-                onclick={startRandom}
-                title="Start Random Journey"
-                class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 h-full px-4 rounded-l-2xl border-r border-blue-700 transition-all active:scale-95 leading-none shrink-0"
-            >
-                <span class="text-lg">🎲</span>
-                <span class="font-mono text-base">{game.randomWordLength}</span>
-            </button>
-            <button 
-                onmouseenter={() => showRandomConfig = true}
-                onclick={(e) => { e.stopPropagation(); showRandomConfig = !showRandomConfig; }}
-                class="px-2 h-full hover:bg-slate-700 transition-colors text-slate-500 rounded-r-2xl"
-            >
-                <svg class="w-4 h-4 transform transition-transform {showRandomConfig ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" />
-                </svg>
-            </button>
+            <div class="relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden h-[52px] z-20">
+                <button 
+                    onclick={startRandom}
+                    title="Start Random Journey"
+                    class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 h-full px-4 transition-all active:scale-95 leading-none border-r border-blue-700 shrink-0"
+                >
+                    <span class="text-lg">🎲</span>
+                    <span class="font-mono text-base">{game.randomWordLength}</span>
+                </button>
+                <div class="px-2 h-full flex items-center transition-colors text-slate-500">
+                    <svg class="w-4 h-4 transform transition-transform {showRandomConfig ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+            </div>
             
             {#if showRandomConfig}
-                <div class="absolute top-full left-0 right-0 mt-3 p-6 bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 w-64">
+                <div class="absolute top-[48px] left-0 right-0 p-6 pt-10 bg-slate-800 border-2 border-t-0 border-slate-700 rounded-b-[2rem] shadow-2xl z-10 animate-in slide-in-from-top-full duration-300 w-64 origin-top">
                     <div class="space-y-6">
                         <div>
                             <div class="flex justify-between items-end mb-3 text-slate-400">
@@ -317,6 +316,7 @@
             onmouseenter={() => activeObscurity = move.obscurity || 0}
             onmouseleave={() => activeObscurity = null}
           >
+            
             <span class="font-mono text-2xl tracking-[0.15em] font-bold">
               {#each move.word.split('') as char, i}
                 <span class={getCharacterClasses(char, i, move)}>{char}</span>
