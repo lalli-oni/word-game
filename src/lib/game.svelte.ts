@@ -1,5 +1,5 @@
 import { type Scenario } from './scenarios';
-import { dictionaryService, type DictionaryEntry } from './dictionary.svelte';
+import { dictionaryService } from './dictionary.svelte';
 
 export type ConnectionType = 'initial' | 'letter' | 'synonym' | 'antonym' | 'anagram' | 'unknown';
 
@@ -27,7 +27,6 @@ export interface ValidationResult {
 }
 
 export class GameEngine {
-  // Svelte 5 state runes
   startWord = $state('COLD');
   finishWord = $state('WARM');
   currentWord = $state('COLD');
@@ -36,7 +35,6 @@ export class GameEngine {
   score = $state(0);
   allowProfanity = $state(false);
   
-  // Local cache for the current turn's valid semantic moves
   #validSemanticMoves = $state<{ synonyms: string[], antonyms: string[] }>({ synonyms: [], antonyms: [] });
 
   constructor() {
@@ -72,6 +70,24 @@ export class GameEngine {
       this.#refreshSemanticMoves(start);
   }
 
+  async loadRandomScenario() {
+      const start = await dictionaryService.getRandomWord();
+      let finish = await dictionaryService.getRandomWord();
+      
+      // Ensure words are different and somewhat same-ish length for a better challenge
+      while (finish === start || Math.abs(start.length - finish.length) > 2) {
+          finish = await dictionaryService.getRandomWord();
+      }
+
+      this.loadScenario({
+          id: 'random-' + Date.now(),
+          name: 'Random Challenge',
+          startWord: start,
+          finishWord: finish,
+          difficulty: 'medium'
+      });
+  }
+
   reset() {
       this.currentWord = this.startWord;
       this.history = [{ word: this.startWord, type: 'initial', timestamp: Date.now() }];
@@ -93,7 +109,6 @@ export class GameEngine {
       const errors: string[] = [];
       const diffCount = getLetterDifferences(prevWord, word);
       
-      // 1. Check Dictionary Entry first (includes profanity check)
       const entry = await dictionaryService.getEntry(word);
       if (!entry) {
           errors.push(`"${word}" is not in our dictionary.`);
@@ -101,19 +116,14 @@ export class GameEngine {
           errors.push(`"${word}" is a restricted word.`);
       }
 
-      // 2. Check Morph (Single Letter Change)
-      if (diffCount === 1 && prevWord.length === word.length && (!entry || !(!this.allowProfanity && entry.tags.includes('profanity')))) {
-          // Note: we still allow morph even if not in dictionary? 
-          // Actually, let's mandate dictionary existence for all moves
-          if (entry) return { isValid: true, type: 'letter', errors: [] };
+      if (diffCount === 1 && prevWord.length === word.length && entry && (this.allowProfanity || !entry.tags.includes('profanity'))) {
+          return { isValid: true, type: 'letter', errors: [] };
       }
 
-      // 3. Check Anagram
-      if (isAnagram(prevWord, word) && entry) {
+      if (isAnagram(prevWord, word) && entry && (this.allowProfanity || !entry.tags.includes('profanity'))) {
           return { isValid: true, type: 'anagram', errors: [] };
       }
 
-      // 4. Check Cached Semantic Moves
       if (this.#validSemanticMoves.synonyms.includes(word.toLowerCase())) {
           return { isValid: true, type: 'synonym', errors: [] };
       }
@@ -121,7 +131,6 @@ export class GameEngine {
           return { isValid: true, type: 'antonym', errors: [] };
       }
 
-      // --- Collect Errors ---
       if (prevWord.length !== word.length) {
           errors.push('Word length must match for a Morph or Anagram.');
       } else if (diffCount > 1) {

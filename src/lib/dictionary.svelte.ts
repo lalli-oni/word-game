@@ -12,7 +12,6 @@ class DictionaryService {
   private dbVersion = 1;
   private db: IDBPDatabase | null = null;
   
-  // Use Svelte 5 runes for reactive hydration state
   status = $state<'idle' | 'hydrating' | 'ready' | 'error'>('idle');
   progress = $state(0);
 
@@ -86,6 +85,24 @@ class DictionaryService {
   async checkExists(word: string): Promise<boolean> {
     const entry = await this.getEntry(word);
     return !!entry;
+  }
+
+  async getRandomWord(): Promise<string> {
+      if (!this.db) await this.init();
+      const count = await this.db!.count('dictionary');
+      const randomIndex = Math.floor(Math.random() * count);
+      
+      // IndexedDB doesn't have a built-in "get by index" for random access without a cursor
+      // For ~80k words, a cursor skip is okay for a one-off action
+      const tx = this.db!.transaction('dictionary', 'readonly');
+      const store = tx.objectStore('dictionary');
+      let cursor = await store.openCursor();
+      
+      if (randomIndex > 0) {
+          await cursor?.advance(randomIndex);
+      }
+      
+      return cursor?.value.word.toUpperCase() || 'COLD';
   }
 }
 

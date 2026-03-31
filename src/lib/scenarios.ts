@@ -31,5 +31,37 @@ export const scenarios: Scenario[] = [
     finishWord: 'DOG',
     difficulty: 'medium',
     description: 'The classic word ladder challenge.'
+  },
+  {
+    id: 'fire-ice',
+    name: 'Elemental Path',
+    startWord: 'FIRE',
+    finishWord: 'SNOW',
+    difficulty: 'hard',
+    description: 'From heat to freezing cold.'
+  },
+  {
+    id: 'work-play',
+    name: 'Life Balance',
+    startWord: 'WORK',
+    finishWord: 'PLAY',
+    difficulty: 'medium',
+    description: 'Find the path between professional and personal.'
+  },
+  {
+    id: 'night-dawn',
+    name: 'Morning Routine',
+    startWord: 'DARK',
+    finishWord: 'LIGHT',
+    difficulty: 'easy',
+    description: 'A simple transition from dark to light.'
+  },
+  {
+    id: 'space-moon',
+    name: 'Astro Jump',
+    startWord: 'STAR',
+    finishWord: 'MOON',
+    difficulty: 'hard',
+    description: 'Navigate the cosmic ladder.'
   }
 ];
