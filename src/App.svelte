@@ -27,7 +27,8 @@
     }
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(e?: Event) {
+    if (e) e.preventDefault();
     if (!guess.trim()) return;
     const result = await game.validateMove(guess);
     if (result.isValid) {
@@ -115,7 +116,11 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-      if (e.key === 'Escape') showRandomConfig = false;
+      if (e.key === 'Escape') {
+          showRandomConfig = false;
+          levelsDialog?.close();
+          settingsDialog?.close();
+      }
   }
 </script>
 
@@ -199,15 +204,19 @@
   </header>
 
   <!-- Journey Select Dialog -->
-  <dialog bind:this={levelsDialog} on:click={(e) => handleBackdropClick(e, levelsDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-lg outline-none">
+  <dialog 
+    bind:this={levelsDialog} 
+    onclick={(e) => handleBackdropClick(e, levelsDialog)} 
+    class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-lg outline-none"
+  >
     <div class="bg-slate-800 border border-slate-700 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
         <div class="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
             <h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Select Journey</h2>
-            <button on:click={() => levelsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
+            <button onclick={() => levelsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
         </div>
         <div class="overflow-y-auto custom-scrollbar p-4 flex flex-col gap-2">
             {#each journeys as s}
-              <button on:click={() => selectJourney(s)} class="w-full text-left p-5 hover:bg-slate-700/50 border border-slate-700/50 rounded-2xl transition-all group">
+              <button onclick={() => selectJourney(s)} class="w-full text-left p-5 hover:bg-slate-700/50 border border-slate-700/50 rounded-2xl transition-all group">
                 <div class="flex justify-between items-center mb-1">
                   <span class="font-bold text-slate-200 group-hover:text-blue-400">{s.name}</span>
                   <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-900 text-slate-500 border border-slate-700">{s.difficulty}</span>
@@ -220,14 +229,18 @@
   </dialog>
 
   <!-- Settings Dialog -->
-  <dialog bind:this={settingsDialog} on:click={(e) => handleBackdropClick(e, settingsDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-md outline-none">
+  <dialog 
+    bind:this={settingsDialog} 
+    onclick={(e) => handleBackdropClick(e, settingsDialog)} 
+    class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-md outline-none"
+  >
     <div class="bg-slate-800 border border-slate-700 rounded-[2rem] shadow-2xl p-8">
         <div class="flex justify-between items-center mb-8">
             <h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Gear</h2>
-            <button on:click={() => settingsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
+            <button onclick={() => settingsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
         </div>
         <label class="flex items-center justify-between cursor-pointer group">
-            <span class="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">Untamed Vocabulary (Profanity)</span>
+            <span class="text-sm font-bold text-slate-300 group-hover:text-white">Untamed Vocabulary (Profanity)</span>
             <div class="relative inline-flex items-center">
                 <input type="checkbox" bind:checked={game.allowProfanity} class="sr-only peer">
                 <div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
@@ -273,12 +286,12 @@
     </div>
 
     {#if game.isGameOver}
-      <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border border-emerald-500/30 rounded-3xl backdrop-blur-xl animate-in zoom-in duration-500 text-center">
+      <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border border-emerald-500/30 rounded-3xl backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl">
         <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter">Success</div>
         <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6">Journey completed in {game.score} steps</p>
         <div class="flex gap-3 justify-center">
-          <button on:click={() => game.reset()} class="bg-slate-800 hover:bg-slate-700 text-[10px] font-black px-8 py-3 rounded-xl border border-slate-700 transition-all active:scale-95 shadow-xl">RETRY</button>
-          <button on:click={() => levelsDialog.showModal()} class="bg-emerald-600 hover:bg-emerald-500 text-[10px] font-black px-8 py-3 rounded-xl shadow-lg shadow-emerald-900/40 active:scale-95">NEW JOURNEY</button>
+          <button onclick={() => game.reset()} class="bg-slate-800 hover:bg-slate-700 text-[10px] font-black px-8 py-3 rounded-xl border border-slate-700 transition-all active:scale-95 shadow-xl">RETRY</button>
+          <button onclick={() => levelsDialog.showModal()} class="bg-emerald-600 hover:bg-emerald-500 text-[10px] font-black px-8 py-3 rounded-xl shadow-lg shadow-emerald-900/40 active:scale-95">NEW JOURNEY</button>
         </div>
       </div>
     {:else}
@@ -296,7 +309,7 @@
               {game.score + 1}
             </div>
           </div>
-          <form on:submit|preventDefault={handleSubmit} class="flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border relative
+          <form onsubmit={handleSubmit} class="flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border relative
             {validation.isValid ? (
               validation.type === 'letter' ? 'border-blue-500 shadow-blue-500/20' : 
               validation.type === 'synonym' ? 'border-purple-500 shadow-purple-500/20' : 
@@ -308,7 +321,7 @@
                     <span class={getInputCharacterClasses(char, i, validation)}>{char}</span>
                 {/each}
             </div>
-            <input type="text" bind:value={guess} on:input={handleInput} placeholder="NEXT WORD..." class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-800 text-transparent caret-white" maxlength="20" />
+            <input type="text" bind:value={guess} oninput={handleInput} placeholder="NEXT WORD..." class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-800 text-transparent caret-white" maxlength="20" />
             <button type="submit" class="text-white w-20 h-full transition-all active:scale-90 flex items-center justify-center shrink-0 
                 {validation.isValid ? (
                   validation.type === 'letter' ? 'bg-blue-600' : 
