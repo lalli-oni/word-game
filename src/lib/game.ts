@@ -1,4 +1,5 @@
 import { type Scenario } from './scenarios';
+import { dictionaryService, type DictionaryEntry } from './dictionary';
 
 export type ConnectionType = 'initial' | 'letter' | 'synonym' | 'antonym' | 'anagram' | 'unknown';
 
@@ -25,15 +26,6 @@ export interface ValidationResult {
   diffCount?: number;
 }
 
-// Simple persistent cache for API results
-const API_CACHE_KEY = 'word_connection_api_cache';
-const getCache = () => JSON.parse(localStorage.getItem(API_CACHE_KEY) || '{}');
-const setCache = (word: string, data: any) => {
-    const cache = getCache();
-    cache[word.toLowerCase()] = { data, timestamp: Date.now() };
-    localStorage.setItem(API_CACHE_KEY, JSON.stringify(cache));
-};
-
 export class GameEngine {
   // Svelte 5 state runes
   startWord = $state('COLD');
@@ -42,17 +34,30 @@ export class GameEngine {
   history = $state<Move[]>([{ word: 'COLD', type: 'initial', timestamp: Date.now() }]);
   isGameOver = $state(false);
   score = $state(0);
+  allowProfanity = $state(false);
   
   // Local cache for the current turn's valid semantic moves
   #validSemanticMoves = $state<{ synonyms: string[], antonyms: string[] }>({ synonyms: [], antonyms: [] });
 
   constructor() {
+      this.init();
+  }
+
+  async init() {
+      await dictionaryService.init();
       this.#refreshSemanticMoves(this.currentWord);
   }
 
   async #refreshSemanticMoves(word: string) {
-      const relations = await fetchRelations(word);
-      this.#validSemanticMoves = relations;
+      const entry = await dictionaryService.getEntry(word);
+      if (entry) {
+          this.#validSemanticMoves = {
+              synonyms: entry.synonyms,
+              antonyms: entry.antonyms
+          };
+      } else {
+          this.#validSemanticMoves = { synonyms: [], antonyms: [] };
+      }
   }
 
   loadScenario(scenario: Scenario) {
@@ -88,14 +93,27 @@ export class GameEngine {
       const errors: string[] = [];
       const diffCount = getLetterDifferences(prevWord, word);
       
-      if (diffCount === 1 && prevWord.length === word.length) {
-          return { isValid: true, type: 'letter', errors: [] };
+      // 1. Check Dictionary Entry first (includes profanity check)
+      const entry = await dictionaryService.getEntry(word);
+      if (!entry) {
+          errors.push(`"${word}" is not in our dictionary.`);
+      } else if (!this.allowProfanity && entry.tags.includes('profanity')) {
+          errors.push(`"${word}" is a restricted word.`);
       }
 
-      if (isAnagram(prevWord, word)) {
+      // 2. Check Morph (Single Letter Change)
+      if (diffCount === 1 && prevWord.length === word.length && (!entry || !(!this.allowProfanity && entry.tags.includes('profanity')))) {
+          // Note: we still allow morph even if not in dictionary? 
+          // Actually, let's mandate dictionary existence for all moves
+          if (entry) return { isValid: true, type: 'letter', errors: [] };
+      }
+
+      // 3. Check Anagram
+      if (isAnagram(prevWord, word) && entry) {
           return { isValid: true, type: 'anagram', errors: [] };
       }
 
+      // 4. Check Cached Semantic Moves
       if (this.#validSemanticMoves.synonyms.includes(word.toLowerCase())) {
           return { isValid: true, type: 'synonym', errors: [] };
       }
@@ -103,19 +121,15 @@ export class GameEngine {
           return { isValid: true, type: 'antonym', errors: [] };
       }
 
+      // --- Collect Errors ---
       if (prevWord.length !== word.length) {
-          const exists = await checkWordExists(word);
-          if (!exists) errors.push(`"${word}" is not a valid English word.`);
           errors.push('Word length must match for a Morph or Anagram.');
       } else if (diffCount > 1) {
           errors.push(`A Morph only allows 1 letter change (you changed ${diffCount}).`);
       }
 
-      errors.push(`"${word}" is not a known synonym or antonym of "${prevWord}".`);
-
-      const exists = await checkWordExists(word);
-      if (!exists && !errors.includes(`"${word}" is not a valid English word.`)) {
-          errors.push(`"${word}" is not a valid English word.`);
+      if (entry) {
+          errors.push(`"${word}" is not a known synonym or antonym of "${prevWord}".`);
       }
 
       return { 
@@ -139,51 +153,6 @@ export class GameEngine {
 
       this.#refreshSemanticMoves(word);
   }
-}
-
-async function fetchRelations(word: string): Promise<{ synonyms: string[], antonyms: string[] }> {
-  const cache = getCache();
-  const cached = cache[word.toLowerCase()];
-  if (cached && Date.now() - cached.timestamp < 86400000) return cached.data;
-
-  try {
-    const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-    if (!response.ok) return { synonyms: [], antonyms: [] };
-    const data = await response.json();
-    
-    const synonyms: string[] = [];
-    const antonyms: string[] = [];
-
-    data.forEach((entry: any) => {
-      entry.meanings.forEach((meaning: any) => {
-        if (meaning.synonyms) synonyms.push(...meaning.synonyms.map((s: string) => s.toLowerCase()));
-        if (meaning.antonyms) antonyms.push(...meaning.antonyms.map((a: string) => a.toLowerCase()));
-        meaning.definitions.forEach((def: any) => {
-           if (def.synonyms) synonyms.push(...def.synonyms.map((s: string) => s.toLowerCase()));
-           if (def.antonyms) antonyms.push(...def.antonyms.map((a: string) => a.toLowerCase()));
-        });
-      });
-    });
-
-    const result = { synonyms: Array.from(new Set(synonyms)), antonyms: Array.from(new Set(antonyms)) };
-    setCache(word, result);
-    return result;
-  } catch (e) {
-    return { synonyms: [], antonyms: [] };
-  }
-}
-
-async function checkWordExists(word: string): Promise<boolean> {
-    const cache = getCache();
-    if (cache[word.toLowerCase()]) return true;
-    try {
-        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-        if (response.ok) {
-            fetchRelations(word); 
-            return true;
-        }
-        return false;
-    } catch { return false; }
 }
 
 function getLetterDifferences(word1: string, word2: string): number {

@@ -1,10 +1,12 @@
 <script lang="ts">
   import { game, type ValidationResult } from './lib/game';
   import { scenarios } from './lib/scenarios';
+  import { dictionaryService } from './lib/dictionary';
   import './app.css';
 
   let guess = $state('');
   let showScenarios = $state(false);
+  let showSettings = $state(false);
   let validation: ValidationResult = $state({ isValid: false, type: 'unknown', errors: [] });
   let activeErrors: string[] = $state([]);
   let isShaking = $state(false);
@@ -99,13 +101,36 @@
   ];
 </script>
 
+{#if dictionaryService.status === 'hydrating'}
+  <div class="fixed inset-0 bg-slate-950/90 z-50 flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
+    <div class="w-full max-w-xs">
+        <h2 class="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic italic">Initializing Game</h2>
+        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Building Local Dictionary...</p>
+        
+        <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden mb-2">
+            <div class="h-full bg-blue-500 transition-all duration-300" style="width: {dictionaryService.progress}%"></div>
+        </div>
+        <div class="flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            <span>{dictionaryService.progress}%</span>
+            <span>Optimizing Data</span>
+        </div>
+    </div>
+  </div>
+{/if}
+
 <main class="min-h-screen bg-slate-900 text-white flex flex-col items-center p-4">
   <header class="mb-10 text-center relative w-full max-w-lg">
     <h1 class="text-4xl md:text-5xl font-black mb-2 tracking-tighter uppercase italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 animate-in fade-in duration-700">Word Connection</h1>
     <div class="flex justify-between items-end px-2">
-      <div class="text-left">
-        <p class="text-slate-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-1">Session</p>
-        <button on:click={() => showScenarios = !showScenarios} class="text-[10px] font-black tracking-widest uppercase bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 transition-all shadow-xl active:scale-95">Levels</button>
+      <div class="text-left flex gap-2">
+        <div>
+            <p class="text-slate-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-1">Session</p>
+            <button on:click={() => { showScenarios = !showScenarios; showSettings = false; }} class="text-[10px] font-black tracking-widest uppercase bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 transition-all shadow-xl active:scale-95">Levels</button>
+        </div>
+        <div>
+            <p class="text-slate-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-1">Config</p>
+            <button on:click={() => { showSettings = !showSettings; showScenarios = false; }} class="text-[10px] font-black tracking-widest uppercase bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 transition-all shadow-xl active:scale-95">⚙️</button>
+        </div>
       </div>
       <div class="text-right">
         <p class="text-slate-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-1">Score</p>
@@ -124,6 +149,20 @@
             <p class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{s.startWord} ➔ {s.finishWord}</p>
           </button>
         {/each}
+      </div>
+    {/if}
+
+    {#if showSettings}
+      <div class="absolute top-full left-0 right-0 mt-4 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl z-20 p-6 backdrop-blur-xl animate-in fade-in slide-in-from-top-4 text-left">
+        <h3 class="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Content Settings</h3>
+        <label class="flex items-center justify-between cursor-pointer group">
+            <span class="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">Include Profanity & Slang</span>
+            <div class="relative inline-flex items-center">
+                <input type="checkbox" bind:checked={game.allowProfanity} class="sr-only peer">
+                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </div>
+        </label>
+        <p class="text-[10px] text-slate-500 mt-2 leading-relaxed">Enabling this adds thousands of slang and restricted words to the dictionary for validation.</p>
       </div>
     {/if}
   </header>
@@ -225,7 +264,7 @@
                 {#if !validation.isValid && guess.length >= 2}
                   <div class="invisible group-hover:visible absolute right-0 bottom-full mb-4 w-64 p-4 bg-slate-800 border border-red-500/50 rounded-2xl shadow-2xl text-[11px] text-red-200 leading-relaxed z-40 animate-in fade-in slide-in-from-bottom-2">
                     <p class="font-bold mb-1 underline underline-offset-4 decoration-red-500">Move Invalid</p>
-                    <ul class="list-disc ml-3 space-y-1">
+                    <ul class="list-disc ml-3 space-y-1 text-left">
                       {#each validation.errors as err}
                         <li>{err}</li>
                       {/each}
