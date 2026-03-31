@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { game, type ValidationResult } from './lib/game';
+  import { game, type ValidationResult } from './lib/game.svelte';
   import { scenarios } from './lib/scenarios';
-  import { dictionaryService } from './lib/dictionary';
+  import { dictionaryService } from './lib/dictionary.svelte';
   import './app.css';
 
   let guess = $state('');

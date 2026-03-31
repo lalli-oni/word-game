@@ -1,5 +1,5 @@
 import { type Scenario } from './scenarios';
-import { dictionaryService, type DictionaryEntry } from './dictionary';
+import { dictionaryService, type DictionaryEntry } from './dictionary.svelte';
 
 export type ConnectionType = 'initial' | 'letter' | 'synonym' | 'antonym' | 'anagram' | 'unknown';
 

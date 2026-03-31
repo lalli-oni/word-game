@@ -15,11 +15,18 @@
     "@tsconfig/svelte": "^5.0.8",
     "@types/node": "^24.12.0",
     "autoprefixer": "^10.4.27",
+    "naughty-words": "^1.2.0",
+    "node-wordnet": "^0.1.12",
     "postcss": "^8.5.8",
     "svelte": "^5.53.12",
     "svelte-check": "^4.4.5",
     "tailwindcss": "^4.2.2",
     "typescript": "~5.9.3",
-    "vite": "^8.0.1"
+    "vite": "^8.0.1",
+    "wndb-with-exceptions": "^3.0.2",
+    "wordnet-db": "^3.1.14"
+  },
+  "dependencies": {
+    "idb": "^8.0.3"
   }
 }
