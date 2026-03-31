@@ -128,6 +128,13 @@
       return 'Obscure';
   }
 
+  function getObscurityColor(val: number) {
+      if (val <= 1) return 'text-emerald-400';
+      if (val <= 3) return 'text-blue-400';
+      if (val <= 6) return 'text-purple-400';
+      return 'text-pink-400';
+  }
+
   function handleMouseMove(e: MouseEvent) {
       mouseX = e.clientX;
       mouseY = e.clientY;
@@ -155,13 +162,13 @@
 <!-- Cursor-following Obscurity Tooltip -->
 {#if activeObscurity !== null}
     <div 
-        class="fixed pointer-events-none z-[60] bg-slate-800 border-2 border-slate-700 p-3 rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-100 flex flex-col items-center gap-1"
+        class="fixed pointer-events-none z-[60] bg-slate-800/90 border-2 border-slate-700 p-2 px-3 rounded-xl shadow-2xl backdrop-blur-md animate-in fade-in zoom-in duration-100 flex flex-col items-center"
         style="left: {mouseX + 15}px; top: {mouseY + 15}px"
     >
-        <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Rarity Rank</span>
-        <div class="flex items-baseline gap-1">
-            <span class="text-2xl font-black text-white leading-none">{activeObscurity}</span>
-            <span class="text-xs font-bold text-slate-400 uppercase">{getObscurityLabel(activeObscurity)}</span>
+        <span class="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Rarity Rank</span>
+        <div class="flex items-center gap-1.5">
+            <span class="text-base font-black {getObscurityColor(activeObscurity)} leading-none">{activeObscurity}</span>
+            <span class="text-[10px] font-bold text-slate-300 uppercase">{getObscurityLabel(activeObscurity)}</span>
         </div>
     </div>
 {/if}
@@ -183,7 +190,10 @@
         </NavButton>
         
         <!-- Combo Random Button -->
-        <div class="random-config-container relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-visible h-[52px]">
+        <div 
+            class="random-config-container relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-visible h-[52px]"
+            onmouseleave={() => showRandomConfig = false}
+        >
             <button 
                 onclick={startRandom}
                 title="Start Random Journey"
@@ -203,22 +213,19 @@
             </button>
             
             {#if showRandomConfig}
-                <div 
-                    class="absolute top-full left-0 right-0 mt-3 p-6 bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 w-64"
-                    onmouseleave={() => showRandomConfig = false}
-                >
+                <div class="absolute top-full left-0 right-0 mt-3 p-6 bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 w-64">
                     <div class="space-y-6">
                         <div>
-                            <div class="flex justify-between items-end mb-3">
-                                <span class="text-xl font-black uppercase tracking-tighter text-slate-400">Length</span>
+                            <div class="flex justify-between items-end mb-3 text-slate-400">
+                                <span class="text-[10px] font-black uppercase tracking-widest">Length</span>
                                 <span class="text-2xl font-black text-blue-400 leading-none">{game.randomWordLength}</span>
                             </div>
                             <input type="range" min="3" max="12" bind:value={game.randomWordLength} class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500" />
                         </div>
                         <div>
-                            <div class="flex justify-between items-end mb-3">
-                                <span class="text-xl font-black uppercase tracking-tighter text-slate-400">Max Obscurity</span>
-                                <span class="text-xl font-black text-purple-400 leading-none">{getObscurityLabel(game.randomMaxObscurity)}</span>
+                            <div class="flex justify-between items-end mb-3 text-slate-400">
+                                <span class="text-[10px] font-black uppercase tracking-widest">Obscurity</span>
+                                <span class="text-2xl font-black {getObscurityColor(game.randomMaxObscurity)} leading-none">{getObscurityLabel(game.randomMaxObscurity)}</span>
                             </div>
                             <input type="range" min="0" max="10" bind:value={game.randomMaxObscurity} class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500" />
                         </div>
@@ -268,7 +275,7 @@
             <button onclick={() => settingsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
         </div>
         <label class="flex items-center justify-between cursor-pointer group">
-            <span class="text-sm font-bold text-slate-300 group-hover:text-white">Untamed Vocabulary (Profanity)</span>
+            <span class="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">Untamed Vocabulary (Profanity)</span>
             <div class="relative inline-flex items-center">
                 <input type="checkbox" bind:checked={game.allowProfanity} class="sr-only peer">
                 <div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
@@ -302,7 +309,7 @@
             <div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg">{i + 1}</div>
           </div>
           <div 
-            class="{cardBase} border-l-4 shadow-lg"
+            class="{cardBase} group relative border-l-4 shadow-lg"
             class:border-l-blue-500={move.type === 'letter'}
             class:border-l-purple-500={move.type === 'synonym'}
             class:border-l-orange-500={move.type === 'antonym'}
@@ -395,8 +402,8 @@
     {/if}
   </div>
 
-  <section class="mt-12 max-w-lg w-full px-4 text-center text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
-    <div class="grid grid-cols-4 gap-4 mb-8">
+  <section class="mt-12 max-w-lg w-full px-4">
+    <div class="grid grid-cols-4 gap-4 mb-8 text-center text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
       {#each legendItems as item}
         <div class="group relative flex flex-col items-center cursor-help">
           <div class="w-full h-1.5 {item.color} rounded-full mb-2 opacity-40 group-hover:opacity-100 transition-all group-hover:scale-y-150"></div>
