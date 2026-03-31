@@ -139,12 +139,21 @@
       mouseX = e.clientX;
       mouseY = e.clientY;
   }
+
+  async function showFinishObscurity() {
+      const entry = await dictionaryService.getEntry(game.finishWord);
+      if (entry) {
+          activeObscurity = game.calculateObscurity(entry.rank);
+      } else {
+          activeObscurity = 10;
+      }
+  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} onmousemove={handleMouseMove} />
 
 {#if dictionaryService.status === 'hydrating'}
-  <div class="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
+  <div class="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center p-8 text-center backdrop-blur-md border border-slate-700">
     <div class="w-full max-w-xs">
         <h2 class="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Preparing the Map</h2>
         <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Unfolding Local Dictionary...</p>
@@ -191,18 +200,18 @@
         
         <!-- Refined Random Combo Button -->
         <div 
-            class="random-config-container relative flex flex-col group"
+            class="random-config-container relative flex flex-col items-center group"
             onmouseenter={() => showRandomConfig = true}
             onmouseleave={() => showRandomConfig = false}
         >
-            <div class="relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden h-[52px] z-20">
+            <div class="relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden h-[52px] z-20 group-hover:rounded-b-none transition-all">
                 <button 
                     onclick={startRandom}
                     title="Start Random Journey"
                     class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 h-full px-4 transition-all active:scale-95 leading-none border-r border-blue-700 shrink-0"
                 >
-                    <span class="text-lg">🎲</span>
-                    <span class="font-mono text-base">{game.randomWordLength}</span>
+                    <span class="text-lg text-white">🎲</span>
+                    <span class="font-mono text-base text-white">{game.randomWordLength}</span>
                 </button>
                 <div class="px-2 h-full flex items-center transition-colors text-slate-500">
                     <svg class="w-4 h-4 transform transition-transform {showRandomConfig ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -212,7 +221,7 @@
             </div>
             
             {#if showRandomConfig}
-                <div class="absolute top-[48px] left-0 right-0 p-6 pt-10 bg-slate-800 border-2 border-t-0 border-slate-700 rounded-b-[2rem] shadow-2xl z-10 animate-in slide-in-from-top-full duration-300 w-64 origin-top">
+                <div class="absolute top-[50px] left-0 right-0 p-6 bg-slate-800 border-2 border-t-0 border-slate-700 rounded-b-[2rem] shadow-2xl z-10 animate-in slide-in-from-top-4 duration-300 w-64 origin-top backdrop-blur-md">
                     <div class="space-y-6">
                         <div>
                             <div class="flex justify-between items-end mb-3 text-slate-400">
@@ -316,7 +325,6 @@
             onmouseenter={() => activeObscurity = move.obscurity || 0}
             onmouseleave={() => activeObscurity = null}
           >
-            
             <span class="font-mono text-2xl tracking-[0.15em] font-bold">
               {#each move.word.split('') as char, i}
                 <span class={getCharacterClasses(char, i, move)}>{char}</span>
@@ -392,7 +400,11 @@
         <div class={spineBase}>
           <div class={labelBase} title="Goal">💰</div>
         </div>
-        <div class="{cardBase} border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent">
+        <div 
+            class="{cardBase} border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent"
+            onmouseenter={showFinishObscurity}
+            onmouseleave={() => activeObscurity = null}
+        >
           <span class="font-mono text-2xl font-black tracking-[0.2em] text-emerald-400 animate-pulse">{game.finishWord}</span>
           <div class="w-8 h-8 rounded-full border-2 border-emerald-500/20 flex items-center justify-center">
             <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
@@ -402,8 +414,8 @@
     {/if}
   </div>
 
-  <section class="mt-12 max-w-lg w-full px-4">
-    <div class="grid grid-cols-4 gap-4 mb-8 text-center text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
+  <section class="mt-12 max-w-lg w-full px-4 text-center text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
+    <div class="grid grid-cols-4 gap-4 mb-8">
       {#each legendItems as item}
         <div class="group relative flex flex-col items-center cursor-help">
           <div class="w-full h-1.5 {item.color} rounded-full mb-2 opacity-40 group-hover:opacity-100 transition-all group-hover:scale-y-150"></div>
