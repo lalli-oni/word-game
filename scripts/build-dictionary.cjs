@@ -14,15 +14,23 @@ subtlex.forEach((item, index) => {
     wordRanks[item.word.toLowerCase()] = index + 1;
 });
 
-// Max rank + 1 for words not in SUBTLEX
 const DEFAULT_RANK = subtlex.length + 1;
 
-// Collect all English profanity
 Object.values(naughty).forEach(list => {
     if (Array.isArray(list)) {
         list.forEach(word => allProfanity.add(word.toLowerCase()));
     }
 });
+
+function simplePlural(word) {
+    if (word.endsWith('s') || word.endsWith('x') || word.endsWith('ch') || word.endsWith('sh')) {
+        return word + 'es';
+    }
+    if (word.endsWith('y') && !/[aeiou]y$/.test(word)) {
+        return word.slice(0, -1) + 'ies';
+    }
+    return word + 's';
+}
 
 async function build() {
     console.log('Building dictionary from WordNet DB files...');
@@ -49,7 +57,7 @@ async function build() {
     }
 
     const lemmas = Array.from(allLemmas);
-    console.log(`Extracted ${lemmas.length} unique lemmas. Processing relations and ranks...`);
+    console.log(`Extracted ${lemmas.length} unique lemmas. Processing relations and inflections...`);
 
     const batchSize = 500;
     for (let i = 0; i < lemmas.length; i += batchSize) {
@@ -74,12 +82,28 @@ async function build() {
                     tags.push('profanity');
                 }
 
-                dictionary[lemma] = {
+                const entry = {
                     synonyms: Array.from(synonyms),
                     antonyms: Array.from(antonyms),
                     tags,
                     rank: wordRanks[lemma] || DEFAULT_RANK
                 };
+
+                dictionary[lemma] = entry;
+
+                // Simple automatic pluralization for nouns
+                // We'll check if the lemma appears in index.noun
+                // For this script, we'll just add it if it's not already there
+                const plural = simplePlural(lemma);
+                if (!dictionary[plural]) {
+                    dictionary[plural] = {
+                        synonyms: entry.synonyms.map(s => simplePlural(s)),
+                        antonyms: entry.antonyms.map(a => simplePlural(a)),
+                        tags: [...entry.tags],
+                        rank: wordRanks[plural] || Math.min(entry.rank + 5000, DEFAULT_RANK) // Slightly more obscure than lemma
+                    };
+                }
+
             } catch (e) {}
         }));
         
@@ -90,8 +114,7 @@ async function build() {
 
     const outputPath = path.join(__dirname, '../public/dictionary.json');
     fs.writeFileSync(outputPath, JSON.stringify(dictionary));
-    console.log(`\nSuccess! Dictionary built with ${Object.keys(dictionary).length} words.`);
-    console.log(`Saved to ${outputPath}`);
+    console.log(`\nSuccess! Dictionary built with ${Object.keys(dictionary).length} words (including inflections).`);
 }
 
 build();

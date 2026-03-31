@@ -152,18 +152,30 @@
 
 <svelte:window onkeydown={handleKeydown} onmousemove={handleMouseMove} />
 
-{#if dictionaryService.status === 'hydrating'}
+{#if dictionaryService.status === 'hydrating' || dictionaryService.status === 'error'}
   <div class="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
     <div class="w-full max-w-xs">
-        <h2 class="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Preparing the Map</h2>
-        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Unfolding Local Dictionary...</p>
-        <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden mb-2 border border-slate-700">
-            <div class="h-full bg-blue-500 transition-all duration-300" style="width: {dictionaryService.progress}%"></div>
-        </div>
-        <div class="flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest">
-            <span>{dictionaryService.progress}%</span>
-            <span>Plotting Routes</span>
-        </div>
+        {#if dictionaryService.status === 'hydrating'}
+            <h2 class="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Preparing the Map</h2>
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Unfolding Local Dictionary...</p>
+            
+            <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden mb-2 border border-slate-700">
+                <div class="h-full bg-blue-500 transition-all duration-300" style="width: {dictionaryService.progress}%"></div>
+            </div>
+            <div class="flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                <span>{dictionaryService.progress}%</span>
+                <span>Plotting Routes</span>
+            </div>
+        {:else}
+            <h2 class="text-2xl font-black text-red-500 mb-2 uppercase tracking-tighter italic">Map Error</h2>
+            <p class="text-slate-300 text-xs font-bold mb-6">{dictionaryService.errorMessage || 'Unknown Initialization Failure'}</p>
+            <button 
+                onclick={() => location.reload()} 
+                class="bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black px-8 py-3 rounded-xl border border-slate-700 transition-all"
+            >
+                RELOAD PAGE
+            </button>
+        {if}
     </div>
   </div>
 {/if}
