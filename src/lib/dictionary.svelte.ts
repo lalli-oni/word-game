@@ -10,7 +10,7 @@ export interface DictionaryEntry {
 
 class DictionaryService {
   private dbName = 'WordConnectionDB';
-  private dbVersion = 2;
+  private dbVersion = 3; // Match the existing version 3
   private db: IDBPDatabase | null = null;
   
   status = $state<'idle' | 'hydrating' | 'ready' | 'error'>('idle');
@@ -34,13 +34,15 @@ class DictionaryService {
             if (oldVersion < 2) {
               store.createIndex('by-length', 'length');
             }
+            
+            // Version 3 added 'rank' field, handled by re-hydration
           },
         });
 
         const count = await this.db.count('dictionary');
         const sample = count > 0 ? await this.db.get('dictionary', 'cold') : null;
         
-        if (count === 0 || (sample && sample.length === undefined)) {
+        if (count === 0 || (sample && sample.rank === undefined)) {
           await this.hydrate();
         } else {
           this.status = 'ready';
@@ -48,6 +50,7 @@ class DictionaryService {
     } catch (e: any) {
         this.status = 'error';
         this.errorMessage = e.message || 'Unknown database error';
+        console.error('DB Init failed:', e);
         throw e;
     }
   }
@@ -118,8 +121,8 @@ class DictionaryService {
       return cursor?.value.word.toUpperCase() || 'COLD';
   }
 
-  // Robust Shortest Path Finder (BFS)
   async findShortestPath(start: string, end: string, maxSteps = 6): Promise<string[] | null> {
+      if (!this.db) await this.init();
       start = start.toLowerCase();
       end = end.toLowerCase();
       if (start === end) return [start];
@@ -127,7 +130,8 @@ class DictionaryService {
       const queue: [string, string[]][] = [[start, [start]]];
       const visited = new Set([start]);
 
-      // Optimization: Pre-fetch all words of the same length for morph/anagram checks
+      // Optimization: Fetch only words of relevant lengths (original +/- 2 for semantic leaps)
+      // but Morph and Anagram require EXACT length.
       const sameLengthWords = await this.getWordsOfLength(start.length);
 
       while (queue.length > 0) {
@@ -137,13 +141,11 @@ class DictionaryService {
           const entry = await this.getEntry(current);
           if (!entry) continue;
 
-          // Collect all potential neighbors
           const neighbors = new Set([
               ...entry.synonyms,
               ...entry.antonyms
           ]);
 
-          // Add morphs and anagrams from the same-length list
           for (const candidate of sameLengthWords) {
               if (candidate === current) continue;
               if (this.isOneLetterDifferent(current, candidate) || this.isAnagram(current, candidate)) {
@@ -159,11 +161,11 @@ class DictionaryService {
               }
           }
       }
-
       return null;
   }
 
   private async getWordsOfLength(len: number): Promise<string[]> {
+      if (!this.db) await this.init();
       const tx = this.db!.transaction('dictionary', 'readonly');
       const index = tx.objectStore('dictionary').index('by-length');
       return await index.getAllKeys(len) as string[];
