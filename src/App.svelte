@@ -153,7 +153,7 @@
 <svelte:window onkeydown={handleKeydown} onmousemove={handleMouseMove} />
 
 {#if dictionaryService.status === 'hydrating'}
-  <div class="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center p-8 text-center backdrop-blur-md border border-slate-700">
+  <div class="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
     <div class="w-full max-w-xs">
         <h2 class="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Preparing the Map</h2>
         <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Unfolding Local Dictionary...</p>
@@ -198,13 +198,13 @@
             <span>🗺️</span>
         </NavButton>
         
-        <!-- Refined Random Combo Button -->
+        <!-- Combo Random Button -->
         <div 
             class="random-config-container relative flex flex-col items-center group"
             onmouseenter={() => showRandomConfig = true}
             onmouseleave={() => showRandomConfig = false}
         >
-            <div class="relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden h-[52px] z-20 group-hover:rounded-b-none transition-all">
+            <div class="relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden h-[52px] z-20 transition-all">
                 <button 
                     onclick={startRandom}
                     title="Start Random Journey"
@@ -221,7 +221,7 @@
             </div>
             
             {#if showRandomConfig}
-                <div class="absolute top-[50px] left-0 right-0 p-6 bg-slate-800 border-2 border-t-0 border-slate-700 rounded-b-[2rem] shadow-2xl z-10 animate-in slide-in-from-top-4 duration-300 w-64 origin-top backdrop-blur-md">
+                <div class="absolute top-[40px] left-0 right-0 p-6 pt-10 bg-slate-800 border-2 border-slate-700 rounded-b-[2rem] shadow-2xl z-10 animate-in slide-in-from-top-4 duration-300 w-64 origin-top backdrop-blur-md">
                     <div class="space-y-6">
                         <div>
                             <div class="flex justify-between items-end mb-3 text-slate-400">
@@ -372,7 +372,7 @@
                     <span class={getInputCharacterClasses(char, i, validation)}>{char}</span>
                 {/each}
             </div>
-            <input type="text" bind:value={guess} oninput={handleInput} placeholder="NEXT WORD..." class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-800 text-transparent caret-white" maxlength="20" />
+            <input type="text" bind:value={guess} oninput={handleInput} placeholder="NEXT WAYPOINT..." class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-800 text-transparent caret-white" maxlength="20" />
             <button type="submit" class="text-white w-20 h-full transition-all active:scale-90 flex items-center justify-center shrink-0 
                 {validation.isValid ? (
                   validation.type === 'letter' ? 'bg-blue-600' : 
@@ -401,7 +401,7 @@
           <div class={labelBase} title="Goal">💰</div>
         </div>
         <div 
-            class="{cardBase} border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent"
+            class="{cardBase} border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent cursor-help"
             onmouseenter={showFinishObscurity}
             onmouseleave={() => activeObscurity = null}
         >

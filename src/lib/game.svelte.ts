@@ -166,6 +166,20 @@ export class GameEngine {
       this.saveGameState();
   }
 
+  calculateObscurity(rank: number): number {
+    if (rank <= 1000) return 0;
+    if (rank <= 5000) return 1;
+    if (rank <= 10000) return 2;
+    if (rank <= 20000) return 3;
+    if (rank <= 30000) return 4;
+    if (rank <= 40000) return 5;
+    if (rank <= 50000) return 6;
+    if (rank <= 60000) return 7;
+    if (rank <= 70000) return 8;
+    if (rank <= 80000) return 9;
+    return 10;
+  }
+
   async validateMove(guess: string): Promise<ValidationResult> {
       const word = guess.toUpperCase();
       if (!word || word.length < 2) return { isValid: false, type: 'unknown', errors: [] };
@@ -186,7 +200,7 @@ export class GameEngine {
           errors.push(`"${word}" is not in our dictionary.`);
       }
 
-      const obscurity = entry ? calculateObscurity(entry.rank) : 10;
+      const obscurity = entry ? this.calculateObscurity(entry.rank) : 10;
 
       if (diffCount === 1 && prevWord.length === word.length && isVisible) {
           return { isValid: true, type: 'letter', errors: [], obscurity };
@@ -242,20 +256,6 @@ export class GameEngine {
       this.#refreshSemanticMoves(word);
       this.saveGameState();
   }
-}
-
-function calculateObscurity(rank: number): number {
-    if (rank <= 1000) return 0;
-    if (rank <= 5000) return 1;
-    if (rank <= 10000) return 2;
-    if (rank <= 20000) return 3;
-    if (rank <= 30000) return 4;
-    if (rank <= 40000) return 5;
-    if (rank <= 50000) return 6;
-    if (rank <= 60000) return 7;
-    if (rank <= 70000) return 8;
-    if (rank <= 80000) return 9;
-    return 10;
 }
 
 function getLetterDifferences(word1: string, word2: string): number {
