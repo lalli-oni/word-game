@@ -9,7 +9,7 @@ export interface DictionaryEntry {
 
 class DictionaryService {
   private dbName = 'WordConnectionDB';
-  private dbVersion = 1;
+  private dbVersion = 2; // Bumped version to trigger upgrade for by-length index
   private db: IDBPDatabase | null = null;
   
   status = $state<'idle' | 'hydrating' | 'ready' | 'error'>('idle');
@@ -20,17 +20,27 @@ class DictionaryService {
 
     try {
         this.db = await openDB(this.dbName, this.dbVersion, {
-          upgrade(db) {
-            if (!db.objectStoreNames.contains('dictionary')) {
-              const store = db.createObjectStore('dictionary', { keyPath: 'word' });
+          upgrade(db, oldVersion) {
+            let store;
+            if (oldVersion < 1) {
+              store = db.createObjectStore('dictionary', { keyPath: 'word' });
               store.createIndex('by-tag', 'tags', { multiEntry: true });
-              store.createIndex('by-length', 'length'); // We'll need to add length to values
+            } else {
+              store = db.transaction.objectStore('dictionary');
+            }
+
+            if (oldVersion < 2) {
+              store.createIndex('by-length', 'length');
             }
           },
         });
 
         const count = await this.db.count('dictionary');
-        if (count === 0) {
+        // We also need to check if the 'length' field exists in current data.
+        // If we just added the index, we might need to re-hydrate or update data.
+        // Let's check a sample.
+        const sample = await this.db.get('dictionary', 'cold');
+        if (count === 0 || (sample && sample.length === undefined)) {
           await this.hydrate();
         } else {
           this.status = 'ready';
@@ -61,7 +71,7 @@ class DictionaryService {
       for (const word of words) {
         await store.put({
           word,
-          length: word.length, // Store length for indexed lookups
+          length: word.length,
           ...data[word]
         });
         current++;
@@ -115,8 +125,6 @@ class DictionaryService {
       return cursor?.value.word.toUpperCase() || 'COLD';
   }
 
-  // Simple BFS to check if two words are connected within N steps
-  // This is computationally expensive in IndexedDB but okay for small N
   async areConnected(start: string, end: string, maxDepth = 3): Promise<boolean> {
       if (start === end) return true;
       
@@ -130,10 +138,6 @@ class DictionaryService {
               if (!entry) continue;
 
               const neighbors = new Set([...entry.synonyms, ...entry.antonyms]);
-              
-              // Add morphs (calculation required)
-              // To keep this fast, we might skip morphs in the solvability check 
-              // or only check a subset. Semantic connections are more likely to bridge gaps.
 
               for (const neighbor of neighbors) {
                   if (neighbor === end.toLowerCase()) return true;
