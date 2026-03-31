@@ -36,20 +36,27 @@ export class GameEngine {
   isGameOver = $state(false);
   score = $state(0);
   
-  // Persisted Config
-  allowProfanity = $state(false);
-  randomWordLength = $state(4);
+  // Persisted Config with manual setters to avoid effect_orphan
+  #allowProfanity = $state(false);
+  #randomWordLength = $state(4);
+
+  get allowProfanity() { return this.#allowProfanity; }
+  set allowProfanity(val: boolean) {
+      this.#allowProfanity = val;
+      this.saveConfig();
+  }
+
+  get randomWordLength() { return this.#randomWordLength; }
+  set randomWordLength(val: number) {
+      this.#randomWordLength = val;
+      this.saveConfig();
+  }
   
   #validSemanticMoves = $state<{ synonyms: string[], antonyms: string[] }>({ synonyms: [], antonyms: [] });
 
   constructor() {
       this.loadConfig();
       this.init();
-
-      // Save config when it changes
-      $effect(() => {
-          this.saveConfig();
-      });
   }
 
   private loadConfig() {
@@ -57,16 +64,16 @@ export class GameEngine {
           const saved = localStorage.getItem(CONFIG_KEY);
           if (saved) {
               const parsed = JSON.parse(saved);
-              this.allowProfanity = parsed.allowProfanity ?? false;
-              this.randomWordLength = parsed.randomWordLength ?? 4;
+              this.#allowProfanity = parsed.allowProfanity ?? false;
+              this.#randomWordLength = parsed.randomWordLength ?? 4;
           }
       } catch (e) { console.error('Failed to load config', e); }
   }
 
   private saveConfig() {
       localStorage.setItem(CONFIG_KEY, JSON.stringify({
-          allowProfanity: this.allowProfanity,
-          randomWordLength: this.randomWordLength
+          allowProfanity: this.#allowProfanity,
+          randomWordLength: this.#randomWordLength
       }));
   }
 
@@ -100,12 +107,12 @@ export class GameEngine {
   }
 
   async loadRandomScenario() {
-      let start = await dictionaryService.getRandomWord(this.randomWordLength);
-      let finish = await dictionaryService.getRandomWord(this.randomWordLength);
+      let start = await dictionaryService.getRandomWord(this.#randomWordLength);
+      let finish = await dictionaryService.getRandomWord(this.#randomWordLength);
       
       let attempts = 0;
       while (attempts < 20 && (finish === start || !(await dictionaryService.areConnected(start, finish, 3)))) {
-          finish = await dictionaryService.getRandomWord(this.randomWordLength);
+          finish = await dictionaryService.getRandomWord(this.#randomWordLength);
           attempts++;
       }
 
@@ -140,9 +147,7 @@ export class GameEngine {
       const diffCount = getLetterDifferences(prevWord, word);
       
       const entry = await dictionaryService.getEntry(word);
-      
-      // Profanity masking: If profane and filter is ON, treat as non-existent
-      const isVisible = entry && (this.allowProfanity || !entry.tags.includes('profanity'));
+      const isVisible = entry && (this.#allowProfanity || !entry.tags.includes('profanity'));
 
       if (!isVisible) {
           errors.push(`"${word}" is not in our dictionary.`);
