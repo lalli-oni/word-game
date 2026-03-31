@@ -158,32 +158,57 @@
   <dialog 
     bind:this={levelsDialog} 
     on:click={(e) => handleBackdropClick(e, levelsDialog)}
-    class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-lg outline-none"
+    class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-lg outline-none overflow-visible"
   >
-    <div class="bg-slate-800 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+    <div class="bg-slate-800 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
         <div class="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
             <h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Select Challenge</h2>
             <button on:click={() => levelsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
         </div>
         
-        <div class="overflow-y-auto custom-scrollbar p-2">
-            <button 
-              on:click={startRandom}
-              class="w-full text-center p-8 hover:bg-blue-600/20 border-b border-slate-700 transition-all group bg-blue-500/5 rounded-2xl mb-2"
-            >
-              <span class="text-2xl font-black uppercase italic tracking-tighter text-blue-400 group-hover:text-blue-300">🎲 Random Challenge</span>
-              <p class="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-widest">Generate an unpredictable path</p>
-            </button>
-
-            {#each scenarios as s}
-              <button on:click={() => selectScenario(s)} class="w-full text-left p-5 hover:bg-slate-700/50 border-b border-slate-700 last:border-0 transition-colors group rounded-xl">
-                <div class="flex justify-between items-center mb-1">
-                  <span class="font-bold group-hover:text-blue-400 transition-colors">{s.name}</span>
-                  <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-900 text-slate-500 border border-slate-700">{s.difficulty}</span>
+        <div class="overflow-y-auto custom-scrollbar p-4 flex flex-col gap-4">
+            <!-- Enhanced Random Challenge with Slider -->
+            <div class="p-6 bg-blue-500/10 border border-blue-500/30 rounded-3xl flex flex-col gap-4">
+                <div class="flex justify-between items-center">
+                    <span class="text-xl font-black uppercase italic tracking-tighter text-blue-400">🎲 Random Challenge</span>
+                    <button 
+                        on:click={startRandom}
+                        class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black px-6 py-2 rounded-xl transition-all shadow-lg shadow-blue-900/40 active:scale-95"
+                    >
+                        START
+                    </button>
                 </div>
-                <p class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{s.startWord} ➔ {s.finishWord}</p>
-              </button>
-            {/each}
+                
+                <div class="bg-slate-900/50 p-4 rounded-2xl border border-slate-700/50">
+                    <div class="flex justify-between items-end mb-3">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Word Length</span>
+                        <span class="text-xl font-black text-blue-400 leading-none">{game.randomWordLength}</span>
+                    </div>
+                    <input 
+                        type="range" 
+                        min="3" 
+                        max="12" 
+                        bind:value={game.randomWordLength}
+                        class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                    />
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2 mb-1">Curated Paths</h3>
+                {#each scenarios as s}
+                  <button 
+                    on:click={() => selectScenario(s)} 
+                    class="w-full text-left p-5 bg-slate-900/30 hover:bg-slate-700/50 border border-slate-700/50 rounded-2xl transition-all group"
+                  >
+                    <div class="flex justify-between items-center mb-1">
+                      <span class="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">{s.name}</span>
+                      <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-900 text-slate-500 border border-slate-700">{s.difficulty}</span>
+                    </div>
+                    <p class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{s.startWord} ➔ {s.finishWord}</p>
+                  </button>
+                {/each}
+            </div>
         </div>
     </div>
   </dialog>
@@ -194,7 +219,7 @@
     on:click={(e) => handleBackdropClick(e, settingsDialog)}
     class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-md outline-none"
   >
-    <div class="bg-slate-800 border border-slate-700 rounded-3xl shadow-2xl p-8 animate-in zoom-in duration-300">
+    <div class="bg-slate-800 border border-slate-700 rounded-3xl shadow-2xl p-8">
         <div class="flex justify-between items-center mb-8">
             <h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Game Settings</h2>
             <button on:click={() => settingsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
@@ -211,26 +236,6 @@
                     </div>
                 </label>
                 <p class="text-[10px] text-slate-500 leading-relaxed">Adds thousands of slang and restricted words to the dictionary.</p>
-            </div>
-
-            <!-- Random Length Slider -->
-            <div>
-                <div class="flex justify-between items-end mb-4">
-                    <span class="text-sm font-bold text-slate-300">Random Word Length</span>
-                    <span class="text-2xl font-black text-blue-400 leading-none">{game.randomWordLength}</span>
-                </div>
-                <input 
-                    type="range" 
-                    min="3" 
-                    max="12" 
-                    bind:value={game.randomWordLength}
-                    class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-                <div class="flex justify-between text-[9px] font-black text-slate-600 uppercase tracking-widest mt-2">
-                    <span>Short</span>
-                    <span>Standard</span>
-                    <span>Long</span>
-                </div>
             </div>
         </div>
     </div>
@@ -333,7 +338,7 @@
                 {#if !validation.isValid && guess.length >= 2}
                   <div class="invisible group-hover:visible absolute right-0 bottom-full mb-4 w-64 p-4 bg-slate-800 border border-red-500/50 rounded-2xl shadow-2xl text-[11px] text-red-200 leading-relaxed z-40 animate-in fade-in slide-in-from-bottom-2 text-left">
                     <p class="font-bold mb-1 underline underline-offset-4 decoration-red-500">Move Invalid</p>
-                    <ul class="list-disc ml-3 space-y-1">
+                    <ul class="list-disc ml-3 space-y-1 text-left">
                       {#each validation.errors as err}
                         <li>{err}</li>
                       {/each}
@@ -346,7 +351,7 @@
         </div>
         
         {#if activeErrors.length > 0}
-          <div class="ml-16 animate-in slide-in-from-top-2 fade-in duration-300 flex flex-col gap-1">
+          <div class="ml-16 animate-in slide-in-from-top-2 fade-in duration-300 flex flex-col gap-1 text-left">
             {#each activeErrors as err}
               <p class="text-[10px] font-bold text-red-400 uppercase tracking-wider bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 inline-block self-start">
                 {err}
@@ -356,7 +361,7 @@
         {/if}
       </div>
 
-      <div class="flex gap-4 items-center mt-2">
+      <div class="flex gap-4 items-center mt-2 text-left">
         <div class={spineBase}>
           <div class={labelBase} title="Goal">🏁</div>
         </div>
@@ -378,7 +383,7 @@
         <div class="group relative flex flex-col items-center cursor-help">
           <div class="w-full h-1.5 {item.color} rounded-full mb-2 opacity-40 group-hover:opacity-100 transition-all group-hover:scale-y-150"></div>
           <span class="text-[9px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-300 transition-colors">{item.label}</span>
-          <div class="invisible group-hover:visible absolute bottom-full mb-4 w-56 p-4 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl text-[10px] text-slate-400 leading-relaxed z-30 animate-in fade-in slide-in-from-bottom-2">
+          <div class="invisible group-hover:visible absolute bottom-full mb-4 w-56 p-4 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl text-[10px] text-slate-400 leading-relaxed z-30 animate-in fade-in slide-in-from-bottom-2 text-left">
             <p class="font-medium">{item.tip}</p>
             <div class="absolute top-full left-1/2 -translate-x-1/2 border-[10px] border-transparent border-t-slate-800"></div>
           </div>
