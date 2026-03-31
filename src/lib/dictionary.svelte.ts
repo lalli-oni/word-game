@@ -59,7 +59,7 @@ class DictionaryService {
     console.log('Hydrating dictionary into IndexedDB...');
 
     try {
-      const response = await fetch('/word-game/dictionary.json');
+      const response = await fetch('dictionary.json');
       if (!response.ok) throw new Error('Failed to fetch dictionary.json');
       
       const data = await response.json();
