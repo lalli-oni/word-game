@@ -1,4 +1,4 @@
-export interface Scenario {
+export interface Journey {
   id: string;
   name: string;
   startWord: string;
@@ -7,10 +7,10 @@ export interface Scenario {
   description?: string;
 }
 
-export const scenarios: Scenario[] = [
+export const journeys: Journey[] = [
   {
     id: 'tutorial',
-    name: 'The Basics',
+    name: 'The First Steps',
     startWord: 'COLD',
     finishWord: 'WARM',
     difficulty: 'easy',
@@ -18,7 +18,7 @@ export const scenarios: Scenario[] = [
   },
   {
     id: 'land-sea',
-    name: 'Land to Sea',
+    name: 'Coast to Coast',
     startWord: 'LAND',
     finishWord: 'SHIP',
     difficulty: 'medium',
@@ -26,7 +26,7 @@ export const scenarios: Scenario[] = [
   },
   {
     id: 'cat-dog',
-    name: 'Classic Ladder',
+    name: 'Classic Trek',
     startWord: 'CAT',
     finishWord: 'DOG',
     difficulty: 'medium',
@@ -34,7 +34,7 @@ export const scenarios: Scenario[] = [
   },
   {
     id: 'fire-ice',
-    name: 'Elemental Path',
+    name: 'Elemental Quest',
     startWord: 'FIRE',
     finishWord: 'SNOW',
     difficulty: 'hard',
@@ -42,7 +42,7 @@ export const scenarios: Scenario[] = [
   },
   {
     id: 'work-play',
-    name: 'Life Balance',
+    name: 'The Daily Loop',
     startWord: 'WORK',
     finishWord: 'PLAY',
     difficulty: 'medium',
@@ -50,7 +50,7 @@ export const scenarios: Scenario[] = [
   },
   {
     id: 'night-dawn',
-    name: 'Morning Routine',
+    name: 'Break of Day',
     startWord: 'DARK',
     finishWord: 'LIGHT',
     difficulty: 'easy',
@@ -58,7 +58,7 @@ export const scenarios: Scenario[] = [
   },
   {
     id: 'space-moon',
-    name: 'Astro Jump',
+    name: 'Cosmic Voyage',
     startWord: 'STAR',
     finishWord: 'MOON',
     difficulty: 'hard',

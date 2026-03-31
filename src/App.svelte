@@ -1,6 +1,6 @@
 <script lang="ts">
   import { game, type ValidationResult } from './lib/game.svelte';
-  import { scenarios } from './lib/scenarios';
+  import { journeys } from './lib/journeys';
   import { dictionaryService } from './lib/dictionary.svelte';
   import './app.css';
 
@@ -45,8 +45,8 @@
       setTimeout(() => isShaking = false, 500);
   }
 
-  function selectScenario(scenario: any) {
-    game.loadScenario(scenario);
+  function selectJourney(journey: any) {
+    game.loadJourney(journey);
     levelsDialog.close();
     guess = '';
     validation = { isValid: false, type: 'unknown', errors: [] };
@@ -54,7 +54,7 @@
   }
 
   async function startRandom() {
-      await game.loadRandomScenario();
+      await game.loadRandomJourney();
       levelsDialog.close();
       guess = '';
       validation = { isValid: false, type: 'unknown', errors: [] };
@@ -119,90 +119,101 @@
 {#if dictionaryService.status === 'hydrating'}
   <div class="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
     <div class="w-full max-w-xs">
-        <h2 class="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Initializing Game</h2>
-        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Building Local Dictionary...</p>
+        <h2 class="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Preparing the Map</h2>
+        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Unfolding Local Dictionary...</p>
         
-        <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden mb-2">
+        <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden mb-2 border border-slate-700">
             <div class="h-full bg-blue-500 transition-all duration-300" style="width: {dictionaryService.progress}%"></div>
         </div>
         <div class="flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest">
             <span>{dictionaryService.progress}%</span>
-            <span>Optimizing Data</span>
+            <span>Plotting Routes</span>
         </div>
     </div>
   </div>
 {/if}
 
 <main class="min-h-screen bg-slate-900 text-white flex flex-col items-center p-4">
-  <header class="mb-10 text-center relative w-full max-w-lg">
-    <h1 class="text-4xl md:text-5xl font-black mb-2 tracking-tighter uppercase italic text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 animate-in fade-in duration-700">Word Connection</h1>
-    <div class="flex justify-between items-end px-2">
-      <div class="text-left flex gap-2">
+  <header class="mb-12 text-center relative w-full max-w-lg">
+    <!-- Playful Logo Header -->
+    <div class="flex flex-col items-center mb-6 animate-in fade-in zoom-in duration-700">
+        <div class="flex items-center gap-2">
+            <span class="text-5xl md:text-6xl font-black bg-white text-slate-900 px-3 py-1 rounded-2xl transform -rotate-3 shadow-[4px_4px_0px_#3b82f6] border-2 border-slate-900">WORD</span>
+            <div class="w-12 h-0.5 border-t-4 border-dashed border-slate-700 self-end mb-4"></div>
+        </div>
+        <span class="text-5xl md:text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-blue-400 to-emerald-400 transform rotate-2 -mt-2 drop-shadow-2xl">JOURNEY</span>
+    </div>
+
+    <div class="flex justify-between items-end px-4">
+      <div class="text-left flex gap-3">
         <div>
-            <p class="text-slate-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-1">Session</p>
-            <button on:click={() => levelsDialog.showModal()} class="text-[10px] font-black tracking-widest uppercase bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 transition-all shadow-xl active:scale-95">Levels</button>
+            <p class="text-slate-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-1">Maps</p>
+            <button on:click={() => levelsDialog.showModal()} class="text-2xl bg-slate-800 hover:bg-slate-700 p-2 rounded-2xl border-2 border-slate-700 transition-all shadow-xl active:scale-95 leading-none">🗺️</button>
         </div>
         <div>
-            <p class="text-slate-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-1">Config</p>
-            <button on:click={() => settingsDialog.showModal()} class="text-[10px] font-black tracking-widest uppercase bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg border border-slate-700 transition-all shadow-xl active:scale-95">⚙️</button>
+            <p class="text-slate-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-1">Gear</p>
+            <button on:click={() => settingsDialog.showModal()} class="text-2xl bg-slate-800 hover:bg-slate-700 p-2 rounded-2xl border-2 border-slate-700 transition-all shadow-xl active:scale-95 leading-none">⚙️</button>
         </div>
       </div>
       <div class="text-right">
-        <p class="text-slate-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-1">Score</p>
-        <div class="text-3xl font-black text-white leading-none">{game.score}</div>
+        <p class="text-slate-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-1">Moves</p>
+        <div class="text-4xl font-black text-white leading-none tracking-tighter italic">{game.score}</div>
       </div>
     </div>
   </header>
 
-  <!-- Level Select Dialog -->
+  <!-- Journey Select Dialog -->
   <dialog 
     bind:this={levelsDialog} 
     on:click={(e) => handleBackdropClick(e, levelsDialog)}
     class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-lg outline-none overflow-visible"
   >
-    <div class="bg-slate-800 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-        <div class="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
-            <h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Select Challenge</h2>
-            <button on:click={() => levelsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
+    <div class="bg-slate-800 border-4 border-slate-700 rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+        <div class="p-8 border-b-4 border-slate-700 flex justify-between items-center bg-slate-800/50">
+            <h2 class="text-2xl font-black uppercase italic tracking-tighter text-white">Choose Your Journey</h2>
+            <button on:click={() => levelsDialog.close()} class="text-slate-500 hover:text-white transition-colors p-2 text-xl">✕</button>
         </div>
         
-        <div class="overflow-y-auto custom-scrollbar p-4 flex flex-col gap-4">
+        <div class="overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6">
             <!-- Enhanced Random Challenge with Slider -->
-            <div class="p-6 bg-blue-500/10 border border-blue-500/30 rounded-3xl flex flex-col gap-4">
+            <div class="p-8 bg-blue-500/10 border-2 border-blue-500/30 rounded-[2rem] flex flex-col gap-6">
                 <div class="flex justify-between items-center">
-                    <span class="text-xl font-black uppercase italic tracking-tighter text-blue-400">🎲 Random Challenge</span>
+                    <div class="flex flex-col">
+                        <span class="text-2xl font-black uppercase italic tracking-tighter text-blue-400">🎲 Mysterious Path</span>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Unpredictable adventure</p>
+                    </div>
                     <button 
                         on:click={startRandom}
-                        class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black px-6 py-2 rounded-xl transition-all shadow-lg shadow-blue-900/40 active:scale-95"
+                        class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-black px-8 py-3 rounded-2xl transition-all shadow-lg shadow-blue-900/40 active:scale-95 border-b-4 border-blue-800"
                     >
-                        START
+                        EXPLORE
                     </button>
                 </div>
                 
-                <div class="bg-slate-900/50 p-4 rounded-2xl border border-slate-700/50">
-                    <div class="flex justify-between items-end mb-3">
-                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Word Length</span>
-                        <span class="text-xl font-black text-blue-400 leading-none">{game.randomWordLength}</span>
+                <div class="bg-slate-900/50 p-5 rounded-2xl border border-slate-700/50">
+                    <div class="flex justify-between items-end mb-4">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Path Distance (Word Length)</span>
+                        <span class="text-2xl font-black text-blue-400 leading-none">{game.randomWordLength}</span>
                     </div>
                     <input 
                         type="range" 
                         min="3" 
                         max="12" 
                         bind:value={game.randomWordLength}
-                        class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                        class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
                     />
                 </div>
             </div>
 
-            <div class="flex flex-col gap-2">
-                <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2 mb-1">Curated Paths</h3>
-                {#each scenarios as s}
+            <div class="flex flex-col gap-3">
+                <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 mb-1">Curated Expeditions</h3>
+                {#each journeys as s}
                   <button 
-                    on:click={() => selectScenario(s)} 
-                    class="w-full text-left p-5 bg-slate-900/30 hover:bg-slate-700/50 border border-slate-700/50 rounded-2xl transition-all group"
+                    on:click={() => selectJourney(s)} 
+                    class="w-full text-left p-6 bg-slate-900/30 hover:bg-slate-700/50 border-2 border-slate-700/50 rounded-2xl transition-all group"
                   >
                     <div class="flex justify-between items-center mb-1">
-                      <span class="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">{s.name}</span>
+                      <span class="text-lg font-bold text-slate-200 group-hover:text-blue-400 transition-colors">{s.name}</span>
                       <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-900 text-slate-500 border border-slate-700">{s.difficulty}</span>
                     </div>
                     <p class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{s.startWord} ➔ {s.finishWord}</p>
@@ -213,38 +224,38 @@
     </div>
   </dialog>
 
-  <!-- Settings Dialog -->
+  <!-- Gear/Settings Dialog -->
   <dialog 
     bind:this={settingsDialog} 
     on:click={(e) => handleBackdropClick(e, settingsDialog)}
     class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-md outline-none"
   >
-    <div class="bg-slate-800 border border-slate-700 rounded-3xl shadow-2xl p-8">
+    <div class="bg-slate-800 border-4 border-slate-700 rounded-[2.5rem] shadow-2xl p-8">
         <div class="flex justify-between items-center mb-8">
-            <h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Game Settings</h2>
-            <button on:click={() => settingsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
+            <h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Exploration Gear</h2>
+            <button on:click={() => settingsDialog.close()} class="text-slate-500 hover:text-white transition-colors p-2">✕</button>
         </div>
 
         <div class="space-y-8">
-            <!-- Profanity Toggle -->
             <div>
                 <label class="flex items-center justify-between cursor-pointer group mb-2">
-                    <span class="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">Include Profanity & Slang</span>
+                    <span class="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">Untamed Vocabulary (Profanity)</span>
                     <div class="relative inline-flex items-center">
                         <input type="checkbox" bind:checked={game.allowProfanity} class="sr-only peer">
                         <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                     </div>
                 </label>
-                <p class="text-[10px] text-slate-500 leading-relaxed">Adds thousands of slang and restricted words to the dictionary.</p>
+                <p class="text-[10px] text-slate-500 leading-relaxed">Adds slang and restricted words to your navigation options.</p>
             </div>
         </div>
     </div>
   </dialog>
 
+  <!-- Path Rendering -->
   <div class="w-full max-w-lg flex flex-col gap-4 pr-2">
     <div class="flex gap-4 items-center">
       <div class={spineBase}>
-        <div class={labelBase} title="Start">🟢</div>
+        <div class={labelBase} title="Basecamp">🟢</div>
       </div>
       <div class={cardBase}>
         <span class="font-mono text-2xl font-black tracking-[0.2em] text-slate-400">{game.startWord}</span>
@@ -256,7 +267,7 @@
       {#each game.history.slice(1) as move, i}
         <div class="flex gap-4 items-center animate-in fade-in slide-in-from-left-4 duration-300">
           <div class={spineBase}>
-            <div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg shrink-0">{i + 1}</div>
+            <div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border-2 border-slate-700 shadow-lg shrink-0">{i + 1}</div>
           </div>
           <div class="{cardBase} border-l-4 shadow-lg 
             {move.type === 'letter' ? 'border-l-blue-500' :
@@ -275,19 +286,20 @@
     </div>
 
     {#if game.isGameOver}
-      <div class="ml-16 p-8 bg-emerald-500/10 border border-emerald-500/30 rounded-3xl backdrop-blur-xl animate-in zoom-in duration-500 text-center">
-        <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter">Success</div>
-        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6">Path completed in {game.score} moves</p>
-        <div class="flex gap-3 justify-center">
-          <button on:click={() => game.reset()} class="bg-slate-800 hover:bg-slate-700 text-[10px] font-black px-8 py-3 rounded-xl border border-slate-700 transition-all active:scale-95">RETRY</button>
-          <button on:click={() => levelsDialog.showModal()} class="bg-emerald-600 hover:bg-emerald-500 text-[10px] font-black px-8 py-3 rounded-xl transition-all shadow-lg shadow-emerald-900/40 active:scale-95">NEXT</button>
+      <div class="ml-16 p-10 bg-emerald-500/10 border-4 border-emerald-500/30 rounded-[3rem] backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl shadow-emerald-900/20">
+        <div class="text-6xl mb-4">💎</div>
+        <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter">Treasure!</div>
+        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Journey completed in {game.score} steps</p>
+        <div class="flex gap-4 justify-center">
+          <button on:click={() => game.reset()} class="bg-slate-800 hover:bg-slate-700 text-[10px] font-black px-8 py-4 rounded-2xl border-2 border-slate-700 transition-all active:scale-95 shadow-xl">RETRY</button>
+          <button on:click={() => levelsDialog.showModal()} class="bg-emerald-600 hover:bg-emerald-500 text-[10px] font-black px-8 py-4 rounded-2xl transition-all shadow-xl shadow-emerald-900/40 active:scale-95 border-b-4 border-emerald-800">NEW JOURNEY</button>
         </div>
       </div>
     {:else}
       <div class="flex flex-col gap-2">
         <div class="flex gap-4 items-center {isShaking ? 'animate-shake' : ''}">
           <div class={spineBase}>
-            <div class="text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 border-dashed shrink-0 
+            <div class="text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border-2 border-slate-700 border-dashed shrink-0 
               {validation.isValid ? (
                 validation.type === 'letter' ? 'text-blue-500 border-blue-500' : 
                 validation.type === 'synonym' ? 'text-purple-500 border-purple-500' : 
@@ -315,7 +327,7 @@
               type="text" 
               bind:value={guess} 
               on:input={handleInput}
-              placeholder="NEXT WORD..." 
+              placeholder="NEXT WAYPOINT..." 
               class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-800 text-transparent caret-white selection:bg-blue-500/30" 
               maxlength="20" 
             />
@@ -337,7 +349,7 @@
                 
                 {#if !validation.isValid && guess.length >= 2}
                   <div class="invisible group-hover:visible absolute right-0 bottom-full mb-4 w-64 p-4 bg-slate-800 border border-red-500/50 rounded-2xl shadow-2xl text-[11px] text-red-200 leading-relaxed z-40 animate-in fade-in slide-in-from-bottom-2 text-left">
-                    <p class="font-bold mb-1 underline underline-offset-4 decoration-red-500">Move Invalid</p>
+                    <p class="font-bold mb-1 underline underline-offset-4 decoration-red-500 uppercase tracking-widest text-[9px]">Roadblock</p>
                     <ul class="list-disc ml-3 space-y-1 text-left">
                       {#each validation.errors as err}
                         <li>{err}</li>
@@ -363,13 +375,13 @@
 
       <div class="flex gap-4 items-center mt-2 text-left">
         <div class={spineBase}>
-          <div class={labelBase} title="Goal">🏁</div>
+          <div class={labelBase} title="Goal">💎</div>
         </div>
-        <div class="{cardBase} border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent">
+        <div class="{cardBase} border-4 border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-transparent rounded-[2rem]">
           <span class="font-mono text-2xl font-black tracking-[0.2em] text-emerald-400 animate-pulse">
             {game.finishWord}
           </span>
-          <div class="w-8 h-8 rounded-full border-2 border-emerald-500/20 flex items-center justify-center">
+          <div class="w-10 h-10 rounded-full border-4 border-emerald-500/20 flex items-center justify-center">
             <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
           </div>
         </div>
@@ -383,7 +395,7 @@
         <div class="group relative flex flex-col items-center cursor-help">
           <div class="w-full h-1.5 {item.color} rounded-full mb-2 opacity-40 group-hover:opacity-100 transition-all group-hover:scale-y-150"></div>
           <span class="text-[9px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-300 transition-colors">{item.label}</span>
-          <div class="invisible group-hover:visible absolute bottom-full mb-4 w-56 p-4 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl text-[10px] text-slate-400 leading-relaxed z-30 animate-in fade-in slide-in-from-bottom-2 text-left">
+          <div class="invisible group-hover:visible absolute bottom-full mb-4 w-56 p-4 bg-slate-800 border-2 border-slate-700 rounded-2xl shadow-2xl text-[10px] text-slate-400 leading-relaxed z-30 animate-in fade-in slide-in-from-bottom-2 text-left">
             <p class="font-medium">{item.tip}</p>
             <div class="absolute top-full left-1/2 -translate-x-1/2 border-[10px] border-transparent border-t-slate-800"></div>
           </div>

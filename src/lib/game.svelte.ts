@@ -1,4 +1,4 @@
-import { type Scenario } from './scenarios';
+import { type Journey } from './journeys';
 import { dictionaryService } from './dictionary.svelte';
 
 export type ConnectionType = 'initial' | 'letter' | 'synonym' | 'antonym' | 'anagram' | 'unknown';
@@ -8,15 +8,6 @@ export interface Move {
   type: ConnectionType;
   previousWord?: string;
   timestamp: number;
-}
-
-export interface GameState {
-  startWord: string;
-  finishWord: string;
-  currentWord: string;
-  history: Move[];
-  isGameOver: boolean;
-  score: number;
 }
 
 export interface ValidationResult {
@@ -36,7 +27,7 @@ export class GameEngine {
   isGameOver = $state(false);
   score = $state(0);
   
-  // Persisted Config with manual setters to avoid effect_orphan
+  // Persisted Config
   #allowProfanity = $state(false);
   #randomWordLength = $state(4);
 
@@ -94,10 +85,10 @@ export class GameEngine {
       }
   }
 
-  loadScenario(scenario: Scenario) {
-      const start = scenario.startWord.toUpperCase();
+  loadJourney(journey: Journey) {
+      const start = journey.startWord.toUpperCase();
       this.startWord = start;
-      this.finishWord = scenario.finishWord.toUpperCase();
+      this.finishWord = journey.finishWord.toUpperCase();
       this.currentWord = start;
       this.history = [{ word: start, type: 'initial', timestamp: Date.now() }];
       this.isGameOver = false;
@@ -106,7 +97,7 @@ export class GameEngine {
       this.#refreshSemanticMoves(start);
   }
 
-  async loadRandomScenario() {
+  async loadRandomJourney() {
       let start = await dictionaryService.getRandomWord(this.#randomWordLength);
       let finish = await dictionaryService.getRandomWord(this.#randomWordLength);
       
@@ -116,9 +107,9 @@ export class GameEngine {
           attempts++;
       }
 
-      this.loadScenario({
+      this.loadJourney({
           id: 'random-' + Date.now(),
-          name: 'Random Challenge',
+          name: 'Mysterious Journey',
           startWord: start,
           finishWord: finish,
           difficulty: 'medium'
