@@ -31,9 +31,10 @@ export class GameEngine {
   isGameOver = $state(false);
   score = $state(0);
   
-  // Config
+  // Persisted Config
   #allowProfanity = $state(false);
   #randomWordLength = $state(4);
+  #randomMaxObscurity = $state(10);
 
   get allowProfanity() { return this.#allowProfanity; }
   set allowProfanity(val: boolean) {
@@ -44,6 +45,12 @@ export class GameEngine {
   get randomWordLength() { return this.#randomWordLength; }
   set randomWordLength(val: number) {
       this.#randomWordLength = val;
+      this.saveConfig();
+  }
+
+  get randomMaxObscurity() { return this.#randomMaxObscurity; }
+  set randomMaxObscurity(val: number) {
+      this.#randomMaxObscurity = val;
       this.saveConfig();
   }
   
@@ -62,6 +69,7 @@ export class GameEngine {
               const parsed = JSON.parse(saved);
               this.#allowProfanity = parsed.allowProfanity ?? false;
               this.#randomWordLength = parsed.randomWordLength ?? 4;
+              this.#randomMaxObscurity = parsed.randomMaxObscurity ?? 10;
           }
       } catch (e) { console.error('Failed to load config', e); }
   }
@@ -69,7 +77,8 @@ export class GameEngine {
   private saveConfig() {
       localStorage.setItem(CONFIG_KEY, JSON.stringify({
           allowProfanity: this.#allowProfanity,
-          randomWordLength: this.#randomWordLength
+          randomWordLength: this.#randomWordLength,
+          randomMaxObscurity: this.#randomMaxObscurity
       }));
   }
 

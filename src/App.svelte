@@ -9,6 +9,7 @@
   let validation: ValidationResult = $state({ isValid: false, type: 'unknown', errors: [] });
   let activeErrors: string[] = $state([]);
   let isShaking = $state(false);
+  let showRandomConfig = $state(false);
 
   let levelsDialog: HTMLDialogElement;
   let settingsDialog: HTMLDialogElement;
@@ -56,6 +57,7 @@
 
   async function startRandom() {
       await game.loadRandomJourney();
+      showRandomConfig = false;
       guess = '';
       validation = { isValid: false, type: 'unknown', errors: [] };
       activeErrors = [];
@@ -106,15 +108,30 @@
       if (e.target === dialog) dialog.close();
   }
 
+  function handleClickOutsideRandom(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (showRandomConfig && !target.closest('.random-config-container')) {
+          showRandomConfig = false;
+      }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
+          showRandomConfig = false;
           levelsDialog?.close();
           settingsDialog?.close();
       }
   }
+
+  function getObscurityLabel(val: number) {
+      if (val <= 1) return 'Common';
+      if (val <= 3) return 'Typical';
+      if (val <= 6) return 'Rare';
+      return 'Obscure';
+  }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onclick={handleClickOutsideRandom} onkeydown={handleKeydown} />
 
 {#if dictionaryService.status === 'hydrating'}
   <div class="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
@@ -148,25 +165,45 @@
             <span>🗺️</span>
         </NavButton>
         
-        <!-- Combo Random Button -->
-        <div class="flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden h-[52px]">
+        <!-- Refined Random Combo Button -->
+        <div class="random-config-container relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-visible">
             <button 
                 onclick={startRandom}
                 title="Start Random Journey"
-                class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 h-full px-4 transition-all active:scale-95 leading-none border-r border-blue-700 shrink-0"
+                class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 p-3 px-4 rounded-l-2xl border-r border-blue-700 transition-all active:scale-95 leading-none shrink-0"
             >
                 <span class="text-lg">🎲</span>
                 <span class="font-mono text-base">{game.randomWordLength}</span>
             </button>
-            <div class="flex items-center px-4 w-28 md:w-32">
-                <input 
-                    type="range" 
-                    min="3" 
-                    max="12" 
-                    bind:value={game.randomWordLength} 
-                    class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500" 
-                />
-            </div>
+            <button 
+                onclick={(e) => { e.stopPropagation(); showRandomConfig = !showRandomConfig; }}
+                class="px-2 h-full hover:bg-slate-700 transition-colors text-slate-500 rounded-r-2xl"
+            >
+                <svg class="w-4 h-4 transform transition-transform {showRandomConfig ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+            
+            {#if showRandomConfig}
+                <div class="absolute top-full left-0 right-0 mt-3 p-6 bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 w-64">
+                    <div class="space-y-6">
+                        <div>
+                            <div class="flex justify-between items-end mb-3">
+                                <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Length</span>
+                                <span class="text-2xl font-black text-blue-400 leading-none">{game.randomWordLength}</span>
+                            </div>
+                            <input type="range" min="3" max="12" bind:value={game.randomWordLength} class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-end mb-3">
+                                <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Max Obscurity</span>
+                                <span class="text-xl font-black text-purple-400 leading-none">{getObscurityLabel(game.randomMaxObscurity)}</span>
+                            </div>
+                            <input type="range" min="0" max="10" bind:value={game.randomMaxObscurity} class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500" />
+                        </div>
+                    </div>
+                </div>
+            {/if}
         </div>
 
         <NavButton onclick={() => settingsDialog.showModal()} title="Settings">
@@ -239,11 +276,17 @@
           <div class={spineBase}>
             <div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg">{i + 1}</div>
           </div>
-          <div class="{cardBase} border-l-4 shadow-lg 
+          <div class="{cardBase} group relative border-l-4 shadow-lg 
             {move.type === 'letter' ? 'border-l-blue-500' :
              move.type === 'synonym' ? 'border-l-purple-500' :
              move.type === 'antonym' ? 'border-l-orange-500' : 
              move.type === 'anagram' ? 'border-l-pink-500' : 'border-l-red-500'}">
+            
+            <!-- Rarity Badge/Tooltip -->
+            <div class="absolute -top-2 -right-2 invisible group-hover:visible bg-slate-700 border border-slate-600 p-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-300 z-30 shadow-2xl animate-in fade-in slide-in-from-bottom-1">
+                {getObscurityLabel(move.obscurity || 0)}
+            </div>
+
             <span class="font-mono text-2xl tracking-[0.15em] font-bold">
               {#each move.word.split('') as char, i}
                 <span class={getCharacterClasses(char, i, move)}>{char}</span>
