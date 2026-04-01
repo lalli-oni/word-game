@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type Move, type ValidationResult, game } from '../lib/game.svelte';
+  import { type Move, type ValidationResult, game } from '../game.svelte';
 
   type Props = {
     word: string;
