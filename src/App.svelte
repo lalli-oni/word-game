@@ -2,7 +2,6 @@
   import { game, type ValidationResult } from './lib/game.svelte';
   import { journeys } from './lib/journeys';
   import { dictionaryService } from './lib/dictionary.svelte';
-  import NavButton from './lib/components/NavButton.svelte';
   import Button from './lib/components/Button.svelte';
   import './app.css';
 
@@ -23,9 +22,9 @@
   let confirmDialog: HTMLDialogElement;
   let pendingAction: (() => void) | null = null;
 
-  const cardBase = "flex-1 flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all w-full box-border";
   const spineBase = "w-12 flex flex-col items-center justify-center shrink-0 h-16";
   const labelBase = "text-[16px] font-black leading-none";
+  const cardBase = "flex-1 flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all w-full box-border";
 
   async function handleInput() {
     activeErrors = [];
@@ -225,32 +224,35 @@
         <span class="text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-blue-400 to-emerald-400 transform rotate-2 -mt-2 drop-shadow-2xl">JOURNEY</span>
     </div>
 
-    <div class="flex justify-between items-center px-4">
-      <div class="flex gap-2">
-        <Button variant="secondary" size="icon" onclick={() => levelsDialog.showModal()} tooltip="Choose Journey">
+    <div class="flex justify-between items-center px-4 h-[52px]">
+      <div class="flex gap-2 h-full">
+        <Button variant="secondary" size="icon" onclick={() => levelsDialog.showModal()} tooltip="Choose Journey" disabled={game.isGenerating || game.isSolving} class="h-full">
             <span>🗺️</span>
         </Button>
 
         <Button 
             variant="secondary" 
             size="icon" 
-            onclick={() => game.solve()} 
-            active={game.isSolving} 
+            onclick={() => confirmIfInProgress(() => game.solve())} 
             loading={game.isSolving}
             tooltip="Magic Path"
+            disabled={game.isGenerating}
+            class="h-full"
         >
             <span>🪄</span>
         </Button>
         
+        <!-- Refined Random Combo Button -->
         <div 
-            class="random-config-container relative flex flex-col items-center group"
+            class="random-config-container relative flex flex-col items-center group h-full"
             onmouseenter={() => showRandomConfig = true}
             onmouseleave={() => showRandomConfig = false}
         >
-            <div class="relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl h-[52px] z-20 transition-all overflow-hidden">
+            <div class="relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl h-full z-20 transition-all overflow-hidden" class:rounded-b-none={showRandomConfig}>
                 <button 
                     onclick={() => confirmIfInProgress(startRandom)}
-                    class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 h-full px-4 transition-all active:scale-95 leading-none border-r border-blue-700 shrink-0 text-white"
+                    disabled={game.isGenerating || game.isSolving}
+                    class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 h-full px-4 transition-all active:scale-95 leading-none border-r border-blue-700 shrink-0 text-white disabled:opacity-50"
                 >
                     {#if game.isGenerating}
                         <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -270,7 +272,7 @@
             </div>
             
             {#if showRandomConfig}
-                <div class="absolute top-[40px] left-0 right-0 p-6 pt-10 bg-slate-800 border-2 border-slate-700 rounded-b-[2rem] shadow-2xl z-10 animate-in slide-in-from-top-4 duration-300 w-64 origin-top backdrop-blur-md">
+                <div class="absolute top-[48px] left-0 right-0 p-6 pt-10 bg-slate-800 border-2 border-t-0 border-slate-700 rounded-b-[2rem] shadow-2xl z-10 animate-in slide-in-from-top-4 duration-300 w-64 origin-top backdrop-blur-md">
                     <div class="space-y-6 text-left">
                         <div>
                             <div class="flex justify-between items-end mb-3 text-slate-400">
@@ -291,7 +293,7 @@
             {/if}
         </div>
 
-        <Button variant="secondary" size="icon" onclick={() => settingsDialog.showModal()} tooltip="Gear">
+        <Button variant="secondary" size="icon" onclick={() => settingsDialog.showModal()} tooltip="Settings" disabled={game.isGenerating || game.isSolving} class="h-full">
             <span>⚙️</span>
         </Button>
       </div>
@@ -336,11 +338,11 @@
     </div>
   </dialog>
 
-  <!-- Gear Dialog -->
+  <!-- Settings Dialog -->
   <dialog bind:this={settingsDialog} onclick={(e) => handleBackdropClick(e, settingsDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-md outline-none">
     <div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl p-8">
         <div class="flex justify-between items-center mb-8">
-            <h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Gear</h2>
+            <h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Settings</h2>
             <button onclick={() => settingsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
         </div>
         <label class="flex items-center justify-between cursor-pointer group">
@@ -386,15 +388,15 @@
     </div>
 
     {#if game.isGameOver}
-      <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-3xl backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl">
+      <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-[2.5rem] backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl">
         <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter">Success</div>
         <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8 italic">Journey completed in {game.history.length - 1} steps</p>
-        <div class="flex flex-col gap-3 items-center">
+        <div class="flex flex-col gap-4 items-center">
             <div class="flex gap-3 justify-center">
               <Button variant="secondary" onclick={() => confirmIfInProgress(() => game.reset())}>RETRY</Button>
               <Button variant="secondary" onclick={() => levelsDialog.showModal()}>NEW JOURNEY</Button>
             </div>
-            <Button size="lg" variant="primary" onclick={shareResult} class="w-full">SHARE RESULT</Button>
+            <Button size="lg" variant="primary" onclick={shareResult} class="w-full max-w-[240px]">SHARE RESULT</Button>
         </div>
       </div>
     {:else}
@@ -442,8 +444,8 @@
     {/if}
   </div>
 
-  <section class="mt-12 max-w-lg w-full px-4">
-    <div class="grid grid-cols-4 gap-4 mb-8 text-center text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
+  <section class="mt-12 max-w-lg w-full px-4 text-center text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
+    <div class="grid grid-cols-4 gap-4 mb-8">
       {#each legendItems as item}
         <div class="group relative flex flex-col items-center cursor-help">
           <div class="w-full h-1.5 {item.color} rounded-full mb-2 opacity-40 group-hover:opacity-100 transition-all group-hover:scale-y-150"></div>
