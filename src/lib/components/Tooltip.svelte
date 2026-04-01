@@ -1,6 +1,5 @@
 <script lang="ts">
   import { fade, scale } from 'svelte/transition';
-  import { onMount } from 'svelte';
 
   type Props = {
     children?: any;
@@ -43,7 +42,6 @@
 
   $effect(() => {
     if (visible) {
-      // Need a tiny delay for the element to exist in DOM if using transition
       setTimeout(updatePosition, 0);
     }
   });
@@ -51,7 +49,7 @@
 
 <div 
   bind:this={triggerEl}
-  class="inline-block {className}"
+  class={className}
   onmouseenter={() => visible = true}
   onmouseleave={() => visible = false}
 >

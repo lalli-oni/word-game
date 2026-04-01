@@ -364,9 +364,9 @@
   <section class="flex-none w-full max-w-lg px-6 pt-2 pb-6">
     <div class="flex justify-between gap-4 text-center text-slate-500 font-bold uppercase text-[9px] tracking-[0.2em]">
       {#each legendItems as item}
-        <Tooltip title={item.tip} position="bottom">
+        <Tooltip title={item.tip} position="bottom" class="flex-1">
             {#snippet children()}
-                <div class="group relative flex flex-col items-center cursor-help">
+                <div class="group relative flex flex-col items-center cursor-help w-full">
                     <div class="w-full h-1.5 {item.color} rounded-full mb-2 opacity-40 group-hover:opacity-100 transition-all group-hover:scale-y-150"></div>
                     <span class="group-hover:text-slate-300 transition-colors">{item.label}</span>
                 </div>
@@ -410,15 +410,20 @@
             <div class="flex flex-col gap-2 shrink-0 py-2">
                 <div class="flex gap-3 items-center {isShaking ? 'animate-shake' : ''}">
                   <div class={spineBase}><div class="text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 border-dashed shrink-0 {validation.isValid ? (validation.type === 'letter' ? 'text-blue-500 border-blue-500' : validation.type === 'synonym' ? 'text-purple-500 border-purple-500' : validation.type === 'antonym' ? 'text-orange-500 border-orange-500' : validation.type === 'anagram' ? 'text-pink-500 border-pink-500' : '') : (validation.errors.length > 0 ? 'text-red-500 border-red-500 shadow-lg' : 'text-slate-600')}">{game.history.length}</div></div>
-                  <form onsubmit={handleSubmit} class="flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border relative {validation.isValid ? (validation.type === 'letter' ? 'border-blue-500 shadow-blue-500/20' : validation.type === 'synonym' ? 'border-purple-500 shadow-purple-500/20' : validation.type === 'antonym' ? 'border-orange-500 shadow-orange-500/20' : validation.type === 'anagram' ? 'border-pink-500 shadow-pink-500/20' : '') : (activeErrors.length > 0 ? 'border-red-500 shadow-red-500/20' : 'border-blue-500/30 shadow-blue-500/10')} max-w-[calc(100%-60px)]">
+                  <form onsubmit={handleSubmit} class="flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border relative {validation.isValid ? (validation.type === 'letter' ? 'border-blue-500 shadow-blue-500/20' : validation.type === 'synonym' ? 'border-purple-500 shadow-purple-500/20' : validation.type === 'antonym' ? 'border-orange-500 shadow-orange-500/20' : validation.type === 'anagram' ? 'border-pink-500 shadow-pink-500/20' : '') : (activeErrors.length > 0 ? 'border-red-500 shadow-red-500/20' : 'border-blue-500/30 shadow-blue-500/10')}">
                     <div class="absolute inset-y-0 left-5 flex items-center pointer-events-none font-mono text-2xl uppercase tracking-[0.2em] font-black">
                         {#each guess.toUpperCase().split('') as char, i}
                             <span class={getInputCharacterClasses(char, i, validation)}>{char}</span>
                         {/each}
                     </div>
-                    <input type="text" bind:value={guess} oninput={handleInput} placeholder="NEXT WORD..." class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-800 text-transparent caret-white selection:bg-blue-500/30" maxlength="20" />
+                    <input type="text" bind:value={guess} oninput={handleInput} placeholder="NEXT WORD..." class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-400/40 text-transparent caret-white selection:bg-blue-500/30" maxlength="20" />
                     <button type="submit" class="text-white w-20 h-full transition-all active:scale-90 flex items-center justify-center shrink-0 {validation.isValid ? (validation.type === 'letter' ? 'bg-blue-600' : validation.type === 'synonym' ? 'bg-purple-600' : validation.type === 'antonym' ? 'bg-orange-600' : validation.type === 'anagram' ? 'bg-pink-600' : '') : 'bg-slate-700'}"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7" /></svg></button>
                   </form>
+                  <div class="w-12 shrink-0 flex items-center justify-center gap-1.5 opacity-40">
+                      <div class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></div>
+                      <div class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse [animation-delay:200ms]"></div>
+                      <div class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse [animation-delay:400ms]"></div>
+                  </div>
                 </div>
                 {#if activeErrors.length > 0}
                   <div class="ml-16 animate-in slide-in-from-top-2 fade-in duration-300 flex flex-col gap-1 text-left">
