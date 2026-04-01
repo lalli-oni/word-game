@@ -327,6 +327,10 @@ export class GameEngine {
       const moveScore = this.calculateMoveScore(validation.obscurity || 0);
       
       this.currentWord = word;
+      
+      // Check if this move completes the journey
+      const isGoal = (word === this.finishWord);
+
       this.history.push({ 
           word, 
           type: validation.type, 
@@ -336,7 +340,7 @@ export class GameEngine {
           moveScore
       });
       
-      this.isGameOver = (word === this.finishWord);
+      this.isGameOver = isGoal;
       this.score += moveScore;
 
       if (this.isGameOver && this.currentJourneyId !== 'shared') {

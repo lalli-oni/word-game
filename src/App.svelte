@@ -29,6 +29,7 @@
   let levelsDialog: HTMLDialogElement;
   let settingsDialog: HTMLDialogElement;
   let confirmDialog: HTMLDialogElement;
+  let successDialog: HTMLDialogElement;
   let pendingAction: (() => void) | null = null;
   let confirmTitle = $state('Abandon Journey?');
   let confirmBody = $state('Your current progress will be lost forever.');
@@ -52,11 +53,16 @@
     if (!guess.trim()) return;
     const result = await game.validateMove(guess);
     if (result.isValid) {
+      const isGoal = guess.toUpperCase() === game.finishWord;
       game.makeMove(guess.trim());
       guess = '';
       validation = { isValid: false, type: 'unknown', errors: [] };
       activeErrors = [];
-      // Scroll to bottom after move
+      
+      if (isGoal) {
+          setTimeout(() => successDialog.showModal(), 500);
+      }
+
       setTimeout(() => {
           if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }, 50);
@@ -136,6 +142,7 @@
           levelsDialog?.close();
           settingsDialog?.close();
           confirmDialog?.close();
+          successDialog?.close();
       }
   }
 
@@ -349,10 +356,10 @@
     <div 
         bind:this={scrollContainer}
         onscroll={handleScroll}
-        class="flex-1 overflow-y-auto custom-scrollbar snap-y snap-mandatory overscroll-contain flex flex-col gap-3 pr-2 pb-4 scroll-smooth"
+        class="flex-1 overflow-y-auto custom-scrollbar overscroll-contain flex flex-col gap-3 pr-2 pb-4 scroll-smooth"
     >
         <!-- Start Word -->
-        <div class="flex gap-3 items-center shrink-0 snap-start">
+        <div class="flex gap-3 items-center shrink-0">
           <div class={spineBase}>
             <div class={labelBase} onmouseenter={() => globalTooltip = 'Starting word'} onmouseleave={() => globalTooltip = null}>
                 <span>🟢</span>
@@ -363,52 +370,43 @@
 
         <!-- History -->
         {#each game.history.slice(1) as move, i}
-            <div class="flex gap-3 items-center animate-in fade-in slide-in-from-left-4 duration-300 shrink-0 snap-start">
-              <div class={spineBase}>
-                <div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg">{i + 1}</div>
-              </div>
-              <JourneyTile 
-                word={move.word} 
-                type={move.type} 
-                score={move.moveScore} 
-                obscurity={move.obscurity}
-                onmouseenter={() => activeObscurity = move.obscurity || 0}
-                onmouseleave={() => activeObscurity = null}
-              />
-            </div>
+            {#if i < game.history.length - 2 || !game.isGameOver}
+                <div class="flex gap-3 items-center animate-in fade-in slide-in-from-left-4 duration-300 shrink-0">
+                  <div class={spineBase}>
+                    <div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg">{i + 1}</div>
+                  </div>
+                  <JourneyTile 
+                    word={move.word} 
+                    type={move.type} 
+                    score={move.moveScore} 
+                    obscurity={move.obscurity}
+                    onmouseenter={() => activeObscurity = move.obscurity || 0}
+                    onmouseleave={() => activeObscurity = null}
+                  />
+                </div>
+            {/if}
         {/each}
 
-        {#if game.isGameOver}
-          <div class="flex flex-col gap-4 snap-end pt-4">
-              <div class="flex gap-3 items-center text-left group">
-                <div class={spineBase}>
-                  <div class={labelBase} onmouseenter={() => globalTooltip = 'Final destination'} onmouseleave={() => globalTooltip = null}>
-                      <div class="w-6 h-6">
-                          <TreasureChest open />
-                      </div>
-                  </div>
-                </div>
-                <JourneyTile 
-                    word={game.finishWord} 
-                    isGoal 
-                    onmouseenter={showFinishObscurity} 
-                    onmouseleave={() => activeObscurity = null} 
-                />
-              </div>
-              
-              <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-[2.5rem] backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl mb-8">
-                <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter leading-none">Success</div>
-                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8 italic">Journey completed in {game.history.length - 1} steps</p>
-                <div class="flex flex-col gap-4 items-center">
-                    <div class="flex gap-3 justify-center">
-                      <Button variant="secondary" onclick={() => confirmAction('Abandon Journey?', 'Retrying will clear your current progress.', 'RETRY', 'STAY ON JOURNEY', () => game.reset())}>RETRY</Button>
-                      <Button variant="secondary" onclick={() => levelsDialog.showModal()}>NEW JOURNEY</Button>
+        <!-- Goal Word -->
+        <div class="flex gap-3 items-center text-left group shrink-0 pt-2">
+            <div class={spineBase}>
+                <div class={labelBase} onmouseenter={() => globalTooltip = 'Final destination'} onmouseleave={() => globalTooltip = null}>
+                    <div class="w-6 h-6">
+                        <TreasureChest open={game.isGameOver} />
                     </div>
-                    <Button size="md" variant="primary" onclick={shareResult} class="w-full max-w-[200px]">SHARE RESULT</Button>
                 </div>
-              </div>
-          </div>
-        {/if}
+            </div>
+            <JourneyTile 
+                word={game.finishWord} 
+                isGoal 
+                type={game.isGameOver ? game.history[game.history.length - 1].type : undefined}
+                score={game.isGameOver ? game.history[game.history.length - 1].moveScore : undefined}
+                obscurity={game.isGameOver ? game.history[game.history.length - 1].obscurity : undefined}
+                onclick={game.isGameOver ? () => successDialog.showModal() : undefined}
+                onmouseenter={showFinishObscurity} 
+                onmouseleave={() => activeObscurity = null} 
+            />
+        </div>
     </div>
   </div>
 
@@ -444,22 +442,13 @@
           </div>
         {/if}
       </div>
-
-      <div class="flex gap-3 items-center mt-2 text-left group">
-        <div class={spineBase}>
-          <div class={labelBase} onmouseenter={() => globalTooltip = 'Final destination. You need to get here!'} onmouseleave={() => globalTooltip = null}>
-              <div class="w-6 h-6">
-                  <TreasureChest />
-              </div>
-          </div>
+    {:else}
+        <div class="flex flex-col items-center">
+            <Button size="md" variant="success" onclick={shareResult} class="w-full max-w-sm mb-2 shadow-2xl shadow-emerald-900/20">
+                SHARE YOUR JOURNEY
+            </Button>
+            <p class="text-[10px] font-black uppercase text-slate-500 tracking-widest animate-pulse">Click the Treasure Chest to see results</p>
         </div>
-        <JourneyTile 
-            word={game.finishWord} 
-            isGoal 
-            onmouseenter={showFinishObscurity} 
-            onmouseleave={() => activeObscurity = null} 
-        />
-      </div>
     {/if}
 
     <div class="mt-8 flex justify-between gap-2 px-2 text-center text-slate-500 font-bold uppercase text-[9px] tracking-[0.2em]">
@@ -540,6 +529,36 @@
                 <div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </div>
         </label>
+    </div>
+</dialog>
+
+<dialog bind:this={successDialog} onclick={(e) => handleBackdropClick(e, successDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-lg outline-none">
+    <div class="bg-slate-800 border-2 border-slate-700 rounded-[3rem] shadow-2xl p-10 text-center animate-in zoom-in duration-300">
+        <div class="w-24 h-24 mx-auto mb-6">
+            <TreasureChest open />
+        </div>
+        <h2 class="text-4xl font-black text-emerald-400 mb-2 italic uppercase tracking-tighter">Treasure Found!</h2>
+        <p class="text-slate-400 text-sm mb-10 italic">Your journey across the dictionary is complete.</p>
+        
+        <div class="bg-slate-900/50 p-6 rounded-[2rem] border border-slate-700/50 mb-10">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-4 px-2">
+                <span class="text-xs font-black text-slate-500 uppercase">Total Score</span>
+                <span class="text-3xl font-black text-white italic">{game.score}</span>
+            </div>
+            <div class="flex justify-between items-center px-2">
+                <span class="text-xs font-black text-slate-500 uppercase">Total Steps</span>
+                <span class="text-xl font-black text-white">{game.history.length - 1}</span>
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-3">
+            <Button variant="primary" size="lg" onclick={shareResult}>SHARE JOURNEY</Button>
+            <div class="grid grid-cols-2 gap-3">
+                <Button variant="secondary" onclick={() => { game.reset(); successDialog.close(); }}>RETRY</Button>
+                <Button variant="secondary" onclick={() => { successDialog.close(); levelsDialog.showModal(); }}>NEW MAP</Button>
+            </div>
+            <button onclick={() => successDialog.close()} class="mt-4 text-slate-500 hover:text-white text-[10px] font-black uppercase tracking-widest">DISMISS</button>
+        </div>
     </div>
 </dialog>
 

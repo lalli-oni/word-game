@@ -21,10 +21,8 @@ class DictionaryService {
     if (this.db) return;
 
     try {
-        console.log('[IDB] Initializing...');
         this.db = await openDB(this.dbName, this.dbVersion, {
           upgrade(db, oldVersion, newVersion, transaction) {
-            console.log(`[IDB] Upgrade: ${oldVersion} -> ${newVersion}`);
             let store;
             if (oldVersion < 1) {
               store = db.createObjectStore('dictionary', { keyPath: 'word' });
@@ -42,7 +40,7 @@ class DictionaryService {
         const count = await this.db.count('dictionary');
         const sample = count > 0 ? await this.db.get('dictionary', 'cold') : null;
         
-        if (count === 0 || (sample && sample.length === undefined)) {
+        if (count === 0 || (sample && sample.rank === undefined)) {
           await this.hydrate();
         } else {
           this.status = 'ready';
@@ -121,58 +119,81 @@ class DictionaryService {
       return cursor?.value.word.toUpperCase() || 'COLD';
   }
 
-  async findShortestPath(start: string, end: string, maxSteps = 6): Promise<string[] | null> {
+  // Implementation of Dijkstra's Algorithm to find the path with the LOWEST score
+  async findShortestPath(start: string, end: string, maxSteps = 8): Promise<string[] | null> {
       try {
-          console.log(`[Solver] Searching path: ${start} -> ${end} (max ${maxSteps} steps)`);
+          console.log(`[Solver] Searching path: ${start} -> ${end}`);
           if (!this.db) await this.init();
           
           start = start.toLowerCase();
           end = end.toLowerCase();
           if (start === end) return [start];
 
-          const queue: [string, string[]][] = [[start, [start]]];
-          const visited = new Set([start]);
+          // Priority Queue implementation: [word, currentPath, currentScore]
+          // Using a simple sorted array as a priority queue for small number of nodes
+          let pq: { word: string, path: string[], score: number }[] = [{ word: start, path: [start], score: 0 }];
+          const bestScores = new Map<string, number>();
+          bestScores.set(start, 0);
 
           const sameLengthWords = await this.getWordsOfLength(start.length);
-          console.log(`[Solver] Found ${sameLengthWords.length} words of length ${start.length} for structural checks.`);
 
-          while (queue.length > 0) {
-              const [current, path] = queue.shift()!;
+          while (pq.length > 0) {
+              // Extract node with lowest score
+              pq.sort((a, b) => a.score - b.score);
+              const { word: current, path, score } = pq.shift()!;
+
               if (path.length > maxSteps) continue;
+              if (current === end) {
+                  console.log(`[Solver] Best path found with score ${score}: ${path.join(' -> ')}`);
+                  return path;
+              }
 
               const entry = await this.getEntry(current);
               if (!entry) continue;
 
-              const neighbors = new Set([
-                  ...entry.synonyms,
-                  ...entry.antonyms
-              ]);
-
+              // Collect neighbors
+              const neighbors = new Set([...entry.synonyms, ...entry.antonyms]);
               for (const candidate of sameLengthWords) {
-                  if (candidate === current) continue;
                   if (this.isOneLetterDifferent(current, candidate) || this.isAnagram(current, candidate)) {
                       neighbors.add(candidate);
                   }
               }
 
               for (const neighbor of neighbors) {
-                  if (neighbor === end) {
-                      const finalPath = [...path, neighbor];
-                      console.log(`[Solver] Success! Path found: ${finalPath.join(' -> ')}`);
-                      return finalPath;
-                  }
-                  if (!visited.has(neighbor)) {
-                      visited.add(neighbor);
-                      queue.push([neighbor, [...path, neighbor]]);
+                  const neighborEntry = await this.getEntry(neighbor);
+                  if (!neighborEntry) continue;
+
+                  // Weight calculation (same as GameEngine)
+                  const obscurity = this.calculateObscurity(neighborEntry.rank);
+                  const moveScore = Math.max(10, 100 - (obscurity * 8));
+                  const newScore = score + moveScore;
+
+                  if (!bestScores.has(neighbor) || newScore < bestScores.get(neighbor)!) {
+                      bestScores.set(neighbor, newScore);
+                      pq.push({ word: neighbor, path: [...path, neighbor], score: newScore });
                   }
               }
           }
-          console.warn(`[Solver] No path found between ${start} and ${end} within ${maxSteps} steps.`);
+          console.warn(`[Solver] No path found.`);
           return null;
       } catch (e) {
           console.error('[Solver] Fatal error:', e);
           return null;
       }
+  }
+
+  private calculateObscurity(rank: number): number {
+    if (rank <= 1000) return 0;
+    if (rank <= 5000) return 1;
+    if (rank <= 10000) return 2;
+    if (rank <= 20000) return 3;
+    if (rank <= 30000) return 4;
+    if (rank <= 40000) return 5;
+    if (rank <= 50000) return 6;
+    if (rank <= 60000) return 7;
+    if (rank <= 70000) return 8;
+    if (rank <= 80000) return 9;
+    return 10;
   }
 
   private async getWordsOfLength(len: number): Promise<string[]> {
