@@ -164,7 +164,9 @@
           .map(m => typeEmojis[m.type as keyof typeof typeEmojis])
           .join('');
 
-      const text = `Word Journey: ${game.startWord} ➔ ${game.finishWord}\nScore: ${game.score}\nSteps: ${game.history.length - 1}\nPath: ${pathString}\n\nhttps://lalli-oni.github.io/word-game/`;
+      const baseUrl = window.location.origin + window.location.pathname;
+      const shareUrl = `${baseUrl}?s=${game.startWord.toLowerCase()}&e=${game.finishWord.toLowerCase()}`;
+      const text = `Word Journey: ${game.startWord} ➔ ${game.finishWord}\nScore: ${game.score}\nSteps: ${game.history.length - 1}\nPath: ${pathString}\n\n${shareUrl}`;
       
       navigator.clipboard.writeText(text);
       showSharedToast = true;

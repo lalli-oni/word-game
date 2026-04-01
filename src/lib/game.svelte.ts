@@ -96,6 +96,26 @@ export class GameEngine {
   }
 
   private loadGameState() {
+      // Priority 1: URL Parameters (Challenges)
+      const params = new URLSearchParams(window.location.search);
+      const urlStart = params.get('s');
+      const urlEnd = params.get('e');
+
+      if (urlStart && urlEnd) {
+          console.log('Loading journey from URL...');
+          this.startWord = urlStart.toUpperCase();
+          this.finishWord = urlEnd.toUpperCase();
+          this.currentWord = this.startWord;
+          this.history = [{ word: this.startWord, type: 'initial', timestamp: Date.now(), obscurity: 0, moveScore: 0 }];
+          this.isGameOver = false;
+          this.score = 0;
+          
+          // Clear URL so refreshing doesn't restart the journey
+          window.history.replaceState({}, '', window.location.pathname);
+          return;
+      }
+
+      // Priority 2: LocalStorage
       try {
           const saved = localStorage.getItem(STATE_KEY);
           if (saved) {
@@ -205,13 +225,6 @@ export class GameEngine {
     return 10;
   }
 
-  // Scoring Logic:
-  // Base cost is 100 points per move.
-  // Using rare words (high obscurity) provides a discount.
-  // Formula: Move Score = 100 - (Obscurity * 8)
-  // Common word (0) = 100 points
-  // Rare word (10) = 20 points
-  // Goal: Reach finish with LOWEST possible score.
   calculateMoveScore(obscurity: number): number {
       return Math.max(10, 100 - (obscurity * 8));
   }
