@@ -9,6 +9,7 @@ export interface Move {
   previousWord?: string;
   timestamp: number;
   obscurity?: number;
+  moveScore?: number;
 }
 
 export interface ValidationResult {
@@ -23,14 +24,16 @@ const CONFIG_KEY = 'word_connection_config';
 const STATE_KEY = 'word_connection_game_state';
 
 export class GameEngine {
+  // Game State
   startWord = $state('COLD');
   finishWord = $state('WARM');
   currentWord = $state('COLD');
-  history = $state<Move[]>([{ word: 'COLD', type: 'initial', timestamp: Date.now(), obscurity: 0 }]);
+  history = $state<Move[]>([{ word: 'COLD', type: 'initial', timestamp: Date.now(), obscurity: 0, moveScore: 0 }]);
   isGameOver = $state(false);
   score = $state(0);
   isSolving = $state(false);
   
+  // Config
   #allowProfanity = $state(false);
   #randomWordLength = $state(4);
   #randomMaxObscurity = $state(10);
@@ -129,7 +132,7 @@ export class GameEngine {
       this.startWord = start;
       this.finishWord = journey.finishWord.toUpperCase();
       this.currentWord = start;
-      this.history = [{ word: start, type: 'initial', timestamp: Date.now(), obscurity: 0 }];
+      this.history = [{ word: start, type: 'initial', timestamp: Date.now(), obscurity: 0, moveScore: 0 }];
       this.isGameOver = false;
       this.score = 0;
       this.#validSemanticMoves = { synonyms: [], antonyms: [] };
@@ -142,14 +145,13 @@ export class GameEngine {
       let finish = await dictionaryService.getRandomWord(this.#randomWordLength);
       
       let attempts = 0;
-      // Use the solver to guarantee a short path exists (max 5 steps for generation)
       while (attempts < 30) {
           start = await dictionaryService.getRandomWord(this.#randomWordLength);
           finish = await dictionaryService.getRandomWord(this.#randomWordLength);
           if (start === finish) continue;
           
           const path = await dictionaryService.findShortestPath(start, finish, 5);
-          if (path && path.length >= 3) break; // Ensure it's not TOO easy (at least 2 moves)
+          if (path && path.length >= 3) break;
           attempts++;
       }
 
@@ -168,12 +170,10 @@ export class GameEngine {
 
       const path = await dictionaryService.findShortestPath(this.currentWord, this.finishWord, 8);
       if (!path) {
-          console.error("No path found!");
           this.isSolving = false;
           return;
       }
 
-      // Animate the solution
       for (let i = 1; i < path.length; i++) {
           await new Promise(r => setTimeout(r, 600));
           await this.makeMove(path[i]);
@@ -184,7 +184,7 @@ export class GameEngine {
 
   reset() {
       this.currentWord = this.startWord;
-      this.history = [{ word: this.startWord, type: 'initial', timestamp: Date.now(), obscurity: 0 }];
+      this.history = [{ word: this.startWord, type: 'initial', timestamp: Date.now(), obscurity: 0, moveScore: 0 }];
       this.isGameOver = false;
       this.score = 0;
       this.#refreshSemanticMoves(this.startWord);
@@ -203,6 +203,17 @@ export class GameEngine {
     if (rank <= 70000) return 8;
     if (rank <= 80000) return 9;
     return 10;
+  }
+
+  // Scoring Logic:
+  // Base cost is 100 points per move.
+  // Using rare words (high obscurity) provides a discount.
+  // Formula: Move Score = 100 - (Obscurity * 8)
+  // Common word (0) = 100 points
+  // Rare word (10) = 20 points
+  // Goal: Reach finish with LOWEST possible score.
+  calculateMoveScore(obscurity: number): number {
+      return Math.max(10, 100 - (obscurity * 8));
   }
 
   async validateMove(guess: string): Promise<ValidationResult> {
@@ -267,16 +278,19 @@ export class GameEngine {
       if (!validation.isValid) return;
 
       const prev = this.currentWord;
+      const moveScore = this.calculateMoveScore(validation.obscurity || 0);
+      
       this.currentWord = word;
       this.history.push({ 
           word, 
           type: validation.type, 
           previousWord: prev, 
           timestamp: Date.now(),
-          obscurity: validation.obscurity
+          obscurity: validation.obscurity,
+          moveScore
       });
       this.isGameOver = (word === this.finishWord);
-      this.score++;
+      this.score += moveScore;
 
       this.#refreshSemanticMoves(word);
       this.saveGameState();

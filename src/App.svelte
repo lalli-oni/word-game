@@ -10,6 +10,7 @@
   let activeErrors: string[] = $state([]);
   let isShaking = $state(false);
   let showRandomConfig = $state(false);
+  let showSharedToast = $state(false);
 
   // Tooltip tracking
   let mouseX = $state(0);
@@ -148,24 +149,57 @@
           activeObscurity = 10;
       }
   }
+
+  function shareResult() {
+      const typeEmojis = {
+          letter: '🟦',
+          synonym: '🟪',
+          antonym: '🟧',
+          anagram: '🟫',
+          initial: '⬜',
+          unknown: '❓'
+      };
+
+      const pathString = game.history
+          .map(m => typeEmojis[m.type as keyof typeof typeEmojis])
+          .join('');
+
+      const text = `Word Journey: ${game.startWord} ➔ ${game.finishWord}\nScore: ${game.score}\nSteps: ${game.history.length - 1}\nPath: ${pathString}\n\nhttps://lalli-oni.github.io/word-game/`;
+      
+      navigator.clipboard.writeText(text);
+      showSharedToast = true;
+      setTimeout(() => showSharedToast = false, 3000);
+  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} onmousemove={handleMouseMove} />
 
-{#if dictionaryService.status === 'hydrating'}
+{#if dictionaryService.status === 'hydrating' || dictionaryService.status === 'error'}
   <div class="fixed inset-0 bg-slate-950/90 z-[100] flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
     <div class="w-full max-w-xs">
-        <h2 class="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Preparing the Map</h2>
-        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Unfolding Local Dictionary...</p>
-        <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden mb-2 border border-slate-700">
-            <div class="h-full bg-blue-500 transition-all duration-300" style="width: {dictionaryService.progress}%"></div>
-        </div>
-        <div class="flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest">
-            <span>{dictionaryService.progress}%</span>
-            <span>Plotting Routes</span>
-        </div>
+        {#if dictionaryService.status === 'hydrating'}
+            <h2 class="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Preparing the Map</h2>
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Unfolding Local Dictionary...</p>
+            <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden mb-2 border border-slate-700">
+                <div class="h-full bg-blue-500 transition-all duration-300" style="width: {dictionaryService.progress}%"></div>
+            </div>
+            <div class="flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                <span>{dictionaryService.progress}%</span>
+                <span>Plotting Routes</span>
+            </div>
+        {:else}
+            <h2 class="text-2xl font-black text-red-500 mb-2 uppercase tracking-tighter italic">Map Error</h2>
+            <p class="text-slate-300 text-xs font-bold mb-6">{dictionaryService.errorMessage || 'Unknown Initialization Failure'}</p>
+            <button onclick={() => location.reload()} class="bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black px-8 py-3 rounded-xl border border-slate-700 transition-all">RELOAD PAGE</button>
+        {/if}
     </div>
   </div>
+{/if}
+
+{#if showSharedToast}
+    <div class="fixed top-8 left-1/2 -translate-x-1/2 z-[100] bg-blue-600 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs shadow-2xl animate-in slide-in-from-top-4 fade-in duration-300">
+        Copied to Clipboard!
+    </div>
 {/if}
 
 <!-- Cursor-following Obscurity Tooltip -->
@@ -246,7 +280,7 @@
             {/if}
         </div>
 
-        <NavButton onclick={() => settingsDialog.showModal()} title="Settings">
+        <NavButton onclick={() => settingsDialog.showModal()} title="Gear">
             <span>⚙️</span>
         </NavButton>
       </div>
@@ -279,7 +313,7 @@
     </div>
   </dialog>
 
-  <!-- Settings Dialog -->
+  <!-- Gear Dialog -->
   <dialog bind:this={settingsDialog} onclick={(e) => handleBackdropClick(e, settingsDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-md outline-none">
     <div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl p-8">
         <div class="flex justify-between items-center mb-8">
@@ -334,7 +368,10 @@
                 <span class={getCharacterClasses(char, i, move)}>{char}</span>
               {/each}
             </span>
-            <span class="text-[8px] font-black uppercase tracking-tighter text-slate-500">{move.type === 'letter' ? 'morph' : move.type}</span>
+            <div class="flex items-center gap-3">
+                <span class="text-[10px] font-black text-slate-500">+{move.moveScore}</span>
+                <span class="text-[8px] font-black uppercase tracking-tighter text-slate-500">{move.type === 'letter' ? 'morph' : move.type}</span>
+            </div>
           </div>
         </div>
       {/each}
@@ -343,10 +380,18 @@
     {#if game.isGameOver}
       <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-3xl backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl">
         <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter">Success</div>
-        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6">Journey completed in {game.score} steps</p>
-        <div class="flex gap-3 justify-center">
-          <button onclick={() => game.reset()} class="bg-slate-800 hover:bg-slate-700 text-[10px] font-black px-8 py-3 rounded-xl border border-slate-700 transition-all active:scale-95 shadow-xl">RETRY</button>
-          <button onclick={() => levelsDialog.showModal()} class="bg-emerald-600 hover:bg-emerald-500 text-[10px] font-black px-8 py-3 rounded-xl shadow-lg shadow-emerald-900/40 active:scale-95">NEW JOURNEY</button>
+        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8 italic">Journey completed in {game.history.length - 1} steps</p>
+        <div class="flex flex-col gap-3 items-center">
+            <div class="flex gap-3 justify-center">
+              <button onclick={() => game.reset()} class="bg-slate-800 hover:bg-slate-700 text-[10px] font-black px-8 py-3 rounded-xl border border-slate-700 transition-all active:scale-95 shadow-xl">RETRY</button>
+              <button onclick={() => levelsDialog.showModal()} class="bg-emerald-600 hover:bg-emerald-500 text-[10px] font-black px-8 py-3 rounded-xl shadow-lg shadow-emerald-900/40 active:scale-95">NEW JOURNEY</button>
+            </div>
+            <button 
+                onclick={shareResult}
+                class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black px-12 py-4 rounded-2xl transition-all shadow-xl active:scale-95 border-b-4 border-blue-800"
+            >
+                SHARE RESULT
+            </button>
         </div>
       </div>
     {:else}
@@ -361,7 +406,7 @@
                 validation.type === 'antonym' ? 'text-orange-500 border-orange-500' : 
                 validation.type === 'anagram' ? 'text-pink-500 border-pink-500' : ''
               ) : (validation.errors.length > 0 ? 'text-red-500 border-red-500 shadow-lg' : 'text-slate-600')}">
-              {game.score + 1}
+              {game.history.length}
             </div>
           </div>
           <form onsubmit={handleSubmit} class="flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border relative
@@ -418,8 +463,8 @@
     {/if}
   </div>
 
-  <section class="mt-12 max-w-lg w-full px-4 text-center text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
-    <div class="grid grid-cols-4 gap-4 mb-8">
+  <section class="mt-12 max-w-lg w-full px-4">
+    <div class="grid grid-cols-4 gap-4 mb-8 text-center text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
       {#each legendItems as item}
         <div class="group relative flex flex-col items-center cursor-help">
           <div class="w-full h-1.5 {item.color} rounded-full mb-2 opacity-40 group-hover:opacity-100 transition-all group-hover:scale-y-150"></div>
