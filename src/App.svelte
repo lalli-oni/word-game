@@ -3,6 +3,7 @@
   import { journeys } from './lib/journeys';
   import { dictionaryService } from './lib/dictionary.svelte';
   import NavButton from './lib/components/NavButton.svelte';
+  import Button from './lib/components/Button.svelte';
   import './app.css';
 
   let guess = $state('');
@@ -19,10 +20,8 @@
 
   let levelsDialog: HTMLDialogElement;
   let settingsDialog: HTMLDialogElement;
-
-  const cardBase = "flex-1 flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all w-full box-border";
-  const spineBase = "w-12 flex flex-col items-center justify-center shrink-0 h-16";
-  const labelBase = "text-[16px] font-black leading-none";
+  let confirmDialog: HTMLDialogElement;
+  let pendingAction: (() => void) | null = null;
 
   async function handleInput() {
     activeErrors = [];
@@ -51,6 +50,15 @@
   function triggerShake() {
       isShaking = true;
       setTimeout(() => isShaking = false, 500);
+  }
+
+  function confirmIfInProgress(action: () => void) {
+      if (game.history.length > 1 && !game.isGameOver) {
+          pendingAction = action;
+          confirmDialog.showModal();
+      } else {
+          action();
+      }
   }
 
   function selectJourney(journey: any) {
@@ -119,6 +127,7 @@
           showRandomConfig = false;
           levelsDialog?.close();
           settingsDialog?.close();
+          confirmDialog?.close();
       }
   }
 
@@ -151,23 +160,11 @@
   }
 
   function shareResult() {
-      const typeEmojis = {
-          letter: '🟦',
-          synonym: '🟪',
-          antonym: '🟧',
-          anagram: '🟫',
-          initial: '⬜',
-          unknown: '❓'
-      };
-
-      const pathString = game.history
-          .map(m => typeEmojis[m.type as keyof typeof typeEmojis])
-          .join('');
-
+      const typeEmojis = { letter: '🟦', synonym: '🟪', antonym: '🟧', anagram: '🟫', initial: '⬜', unknown: '❓' };
+      const pathString = game.history.map(m => typeEmojis[m.type as keyof typeof typeEmojis]).join('');
       const baseUrl = window.location.origin + window.location.pathname;
       const shareUrl = `${baseUrl}?s=${game.startWord.toLowerCase()}&e=${game.finishWord.toLowerCase()}`;
       const text = `Word Journey: ${game.startWord} ➔ ${game.finishWord}\nScore: ${game.score}\nSteps: ${game.history.length - 1}\nPath: ${pathString}\n\n${shareUrl}`;
-      
       navigator.clipboard.writeText(text);
       showSharedToast = true;
       setTimeout(() => showSharedToast = false, 3000);
@@ -192,24 +189,20 @@
         {:else}
             <h2 class="text-2xl font-black text-red-500 mb-2 uppercase tracking-tighter italic">Map Error</h2>
             <p class="text-slate-300 text-xs font-bold mb-6">{dictionaryService.errorMessage || 'Unknown Initialization Failure'}</p>
-            <button onclick={() => location.reload()} class="bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black px-8 py-3 rounded-xl border border-slate-700 transition-all">RELOAD PAGE</button>
+            <Button onclick={() => location.reload()} variant="secondary" size="sm">RELOAD PAGE</Button>
         {/if}
     </div>
   </div>
 {/if}
 
 {#if showSharedToast}
-    <div class="fixed top-8 left-1/2 -translate-x-1/2 z-[100] bg-blue-600 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs shadow-2xl animate-in slide-in-from-top-4 fade-in duration-300">
+    <div class="fixed top-8 left-1/2 -translate-x-1/2 z-[100] bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs shadow-2xl animate-in slide-in-from-top-4 fade-in duration-300">
         Copied to Clipboard!
     </div>
 {/if}
 
-<!-- Cursor-following Obscurity Tooltip -->
 {#if activeObscurity !== null}
-    <div 
-        class="fixed pointer-events-none z-[60] bg-slate-800/90 border-2 border-slate-700 p-2 px-3 rounded-xl shadow-2xl backdrop-blur-md animate-in fade-in zoom-in duration-100 flex flex-col items-center"
-        style="left: {mouseX + 15}px; top: {mouseY + 15}px"
-    >
+    <div class="fixed pointer-events-none z-[60] bg-slate-800/90 border-2 border-slate-700 p-2 px-3 rounded-xl shadow-2xl backdrop-blur-md animate-in fade-in zoom-in duration-100 flex flex-col items-center" style="left: {mouseX + 15}px; top: {mouseY + 15}px">
         <span class="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Rarity Rank</span>
         <div class="flex items-center gap-1.5">
             <span class="text-base font-black {getObscurityColor(activeObscurity)} leading-none">{activeObscurity}</span>
@@ -230,30 +223,42 @@
 
     <div class="flex justify-between items-center px-4">
       <div class="flex gap-2">
-        <NavButton onclick={() => levelsDialog.showModal()} title="Choose Journey">
+        <Button variant="secondary" size="icon" onclick={() => levelsDialog.showModal()} tooltip="Choose Journey">
             <span>🗺️</span>
-        </NavButton>
+        </Button>
 
-        <NavButton onclick={() => game.solve()} title="Magic Path" active={game.isSolving}>
-            <span class={game.isSolving ? "animate-pulse" : ""}>🪄</span>
-        </NavButton>
+        <Button 
+            variant="secondary" 
+            size="icon" 
+            onclick={() => game.solve()} 
+            active={game.isSolving} 
+            loading={game.isSolving}
+            tooltip="Magic Path"
+        >
+            <span>🪄</span>
+        </Button>
         
-        <!-- Combo Random Button -->
         <div 
             class="random-config-container relative flex flex-col items-center group"
             onmouseenter={() => showRandomConfig = true}
             onmouseleave={() => showRandomConfig = false}
         >
-            <div class="relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl overflow-hidden h-[52px] z-20 transition-all">
+            <div class="relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl h-[52px] z-20 transition-all overflow-hidden">
                 <button 
-                    onclick={startRandom}
-                    title="Start Random Journey"
-                    class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 h-full px-4 transition-all active:scale-95 leading-none border-r border-blue-700 shrink-0"
+                    onclick={() => confirmIfInProgress(startRandom)}
+                    class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 h-full px-4 transition-all active:scale-95 leading-none border-r border-blue-700 shrink-0 text-white"
                 >
-                    <span class="text-lg text-white">🎲</span>
-                    <span class="font-mono text-base text-white">{game.randomWordLength}</span>
+                    {#if game.isGenerating}
+                        <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    {:else}
+                        <span class="text-lg">🎲</span>
+                        <span class="font-mono text-base">{game.randomWordLength}</span>
+                    {/if}
                 </button>
-                <div class="px-2 h-full flex items-center transition-colors text-slate-500">
+                <div class="px-2 h-full flex items-center text-slate-500">
                     <svg class="w-4 h-4 transform transition-transform {showRandomConfig ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" />
                     </svg>
@@ -262,7 +267,7 @@
             
             {#if showRandomConfig}
                 <div class="absolute top-[40px] left-0 right-0 p-6 pt-10 bg-slate-800 border-2 border-slate-700 rounded-b-[2rem] shadow-2xl z-10 animate-in slide-in-from-top-4 duration-300 w-64 origin-top backdrop-blur-md">
-                    <div class="space-y-6">
+                    <div class="space-y-6 text-left">
                         <div>
                             <div class="flex justify-between items-end mb-3 text-slate-400">
                                 <span class="text-[10px] font-black uppercase tracking-widest">Length</span>
@@ -282,9 +287,9 @@
             {/if}
         </div>
 
-        <NavButton onclick={() => settingsDialog.showModal()} title="Gear">
+        <Button variant="secondary" size="icon" onclick={() => settingsDialog.showModal()} tooltip="Gear">
             <span>⚙️</span>
-        </NavButton>
+        </Button>
       </div>
       
       <div class="flex items-center gap-3 pr-2">
@@ -294,6 +299,18 @@
     </div>
   </header>
 
+  <!-- Confirm Dialog -->
+  <dialog bind:this={confirmDialog} onclick={(e) => handleBackdropClick(e, confirmDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-sm outline-none">
+    <div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl p-8 text-center animate-in zoom-in duration-200">
+        <h2 class="text-xl font-black uppercase italic tracking-tighter text-white mb-2">Abandon Journey?</h2>
+        <p class="text-slate-400 text-sm mb-8">Your current progress will be lost forever.</p>
+        <div class="flex flex-col gap-2">
+            <Button variant="danger" onclick={() => { pendingAction?.(); confirmDialog.close(); }}>ABANDON</Button>
+            <Button variant="secondary" onclick={() => confirmDialog.close()}>STAY ON PATH</Button>
+        </div>
+    </div>
+  </dialog>
+
   <!-- Journey Select Dialog -->
   <dialog bind:this={levelsDialog} onclick={(e) => handleBackdropClick(e, levelsDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-lg outline-none">
     <div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
@@ -301,9 +318,9 @@
             <h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Select Journey</h2>
             <button onclick={() => levelsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
         </div>
-        <div class="overflow-y-auto custom-scrollbar p-4 flex flex-col gap-2">
+        <div class="overflow-y-auto custom-scrollbar p-4 flex flex-col gap-2 text-left">
             {#each journeys as s}
-              <button onclick={() => selectJourney(s)} class="w-full text-left p-5 bg-slate-900/30 hover:bg-slate-700 border-2 border-slate-700/50 rounded-2xl transition-all group">
+              <button onclick={() => confirmIfInProgress(() => selectJourney(s))} class="w-full text-left p-5 bg-slate-900/30 hover:bg-slate-700 border-2 border-slate-700/50 rounded-2xl transition-all group">
                 <div class="flex justify-between items-center mb-1">
                   <span class="font-bold text-slate-200 group-hover:text-blue-400">{s.name}</span>
                   <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-900 text-slate-500 border border-slate-700">{s.difficulty}</span>
@@ -315,7 +332,7 @@
     </div>
   </dialog>
 
-  <!-- Gear Dialog -->
+  <!-- Settings Dialog -->
   <dialog bind:this={settingsDialog} onclick={(e) => handleBackdropClick(e, settingsDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-md outline-none">
     <div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl p-8">
         <div class="flex justify-between items-center mb-8">
@@ -332,39 +349,24 @@
     </div>
   </dialog>
 
-  <!-- Game Path -->
   <div class="w-full max-w-lg flex flex-col gap-3 pr-2">
-    <!-- Start Word -->
     <div class="flex gap-3 items-center">
       <div class={spineBase}>
         <div class={labelBase} title="Start">🟢</div>
       </div>
-      <div 
-        class={cardBase}
-        onmouseenter={() => activeObscurity = 0}
-        onmouseleave={() => activeObscurity = null}
-      >
+      <div class={cardBase} onmouseenter={() => activeObscurity = 0} onmouseleave={() => activeObscurity = null}>
         <span class="font-mono text-2xl font-black tracking-[0.2em] text-slate-400">{game.startWord}</span>
         <div class="w-2 h-2 rounded-full bg-slate-600"></div>
       </div>
     </div>
 
-    <!-- History -->
     <div class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto custom-scrollbar">
       {#each game.history.slice(1) as move, i}
         <div class="flex gap-3 items-center animate-in fade-in slide-in-from-left-4 duration-300">
           <div class={spineBase}>
             <div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg">{i + 1}</div>
           </div>
-          <div 
-            class="{cardBase} group relative border-l-4 shadow-lg"
-            class:border-l-blue-500={move.type === 'letter'}
-            class:border-l-purple-500={move.type === 'synonym'}
-            class:border-l-orange-500={move.type === 'antonym'}
-            class:border-l-pink-500={move.type === 'anagram'}
-            onmouseenter={() => activeObscurity = move.obscurity || 0}
-            onmouseleave={() => activeObscurity = null}
-          >
+          <div class="{cardBase} group relative border-l-4 shadow-lg" class:border-l-blue-500={move.type === 'letter'} class:border-l-purple-500={move.type === 'synonym'} class:border-l-orange-500={move.type === 'antonym'} class:border-l-pink-500={move.type === 'anagram'} onmouseenter={() => activeObscurity = move.obscurity || 0} onmouseleave={() => activeObscurity = null}>
             <span class="font-mono text-2xl tracking-[0.15em] font-bold">
               {#each move.word.split('') as char, i}
                 <span class={getCharacterClasses(char, i, move)}>{char}</span>
@@ -385,52 +387,28 @@
         <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8 italic">Journey completed in {game.history.length - 1} steps</p>
         <div class="flex flex-col gap-3 items-center">
             <div class="flex gap-3 justify-center">
-              <button onclick={() => game.reset()} class="bg-slate-800 hover:bg-slate-700 text-[10px] font-black px-8 py-3 rounded-xl border border-slate-700 transition-all active:scale-95 shadow-xl">RETRY</button>
-              <button onclick={() => levelsDialog.showModal()} class="bg-emerald-600 hover:bg-emerald-500 text-[10px] font-black px-8 py-3 rounded-xl shadow-lg shadow-emerald-900/40 active:scale-95">NEW JOURNEY</button>
+              <Button variant="secondary" onclick={() => confirmIfInProgress(() => game.reset())}>RETRY</Button>
+              <Button variant="secondary" onclick={() => levelsDialog.showModal()}>NEW JOURNEY</Button>
             </div>
-            <button 
-                onclick={shareResult}
-                class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black px-12 py-4 rounded-2xl transition-all shadow-xl active:scale-95 border-b-4 border-blue-800"
-            >
-                SHARE RESULT
-            </button>
+            <Button size="lg" variant="primary" onclick={shareResult} class="w-full">SHARE RESULT</Button>
         </div>
       </div>
     {:else}
-      <!-- Input -->
       <div class="flex flex-col gap-2">
         <div class="flex gap-3 items-center {isShaking ? 'animate-shake' : ''}">
           <div class={spineBase}>
-            <div class="text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 border-dashed shrink-0 
-              {validation.isValid ? (
-                validation.type === 'letter' ? 'text-blue-500 border-blue-500' : 
-                validation.type === 'synonym' ? 'text-purple-500 border-purple-500' : 
-                validation.type === 'antonym' ? 'text-orange-500 border-orange-500' : 
-                validation.type === 'anagram' ? 'text-pink-500 border-pink-500' : ''
-              ) : (validation.errors.length > 0 ? 'text-red-500 border-red-500 shadow-lg' : 'text-slate-600')}">
+            <div class="text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 border-dashed shrink-0 {validation.isValid ? (validation.type === 'letter' ? 'text-blue-500 border-blue-500' : validation.type === 'synonym' ? 'text-purple-500 border-purple-500' : validation.type === 'antonym' ? 'text-orange-500 border-orange-500' : validation.type === 'anagram' ? 'text-pink-500 border-pink-500' : '') : (validation.errors.length > 0 ? 'text-red-500 border-red-500 shadow-lg' : 'text-slate-600')}">
               {game.history.length}
             </div>
           </div>
-          <form onsubmit={handleSubmit} class="flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border relative
-            {validation.isValid ? (
-              validation.type === 'letter' ? 'border-blue-500 shadow-blue-500/20' : 
-              validation.type === 'synonym' ? 'border-purple-500 shadow-purple-500/20' : 
-              validation.type === 'antonym' ? 'border-orange-500 shadow-orange-500/20' : 
-              validation.type === 'anagram' ? 'border-pink-500 shadow-pink-500/20' : ''
-            ) : (activeErrors.length > 0 ? 'border-red-500 shadow-red-500/20' : 'border-blue-500/30 shadow-blue-500/10')}">
+          <form onsubmit={handleSubmit} class="flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border relative {validation.isValid ? (validation.type === 'letter' ? 'border-blue-500 shadow-blue-500/20' : validation.type === 'synonym' ? 'border-purple-500 shadow-purple-500/20' : validation.type === 'antonym' ? 'border-orange-500 shadow-orange-500/20' : validation.type === 'anagram' ? 'border-pink-500 shadow-pink-500/20' : '') : (activeErrors.length > 0 ? 'border-red-500 shadow-red-500/20' : 'border-blue-500/30 shadow-blue-500/10')}">
             <div class="absolute inset-y-0 left-5 flex items-center pointer-events-none font-mono text-2xl uppercase tracking-[0.2em] font-black">
                 {#each guess.toUpperCase().split('') as char, i}
                     <span class={getInputCharacterClasses(char, i, validation)}>{char}</span>
                 {/each}
             </div>
             <input type="text" bind:value={guess} oninput={handleInput} placeholder="NEXT WAYPOINT..." class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-800 text-transparent caret-white" maxlength="20" />
-            <button type="submit" class="text-white w-20 h-full transition-all active:scale-90 flex items-center justify-center shrink-0 
-                {validation.isValid ? (
-                  validation.type === 'letter' ? 'bg-blue-600' : 
-                  validation.type === 'synonym' ? 'bg-purple-600' : 
-                  validation.type === 'antonym' ? 'bg-orange-600' : 
-                  validation.type === 'anagram' ? 'bg-pink-600' : ''
-                ) : 'bg-slate-700'}">
+            <button type="submit" class="text-white w-20 h-full transition-all active:scale-90 flex items-center justify-center shrink-0 {validation.isValid ? (validation.type === 'letter' ? 'bg-blue-600' : validation.type === 'synonym' ? 'bg-purple-600' : validation.type === 'antonym' ? 'bg-orange-600' : validation.type === 'anagram' ? 'bg-pink-600' : '') : 'bg-slate-700'}">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7" />
               </svg>
@@ -446,16 +424,11 @@
         {/if}
       </div>
 
-      <!-- Goal -->
       <div class="flex gap-3 items-center mt-2 text-left">
         <div class={spineBase}>
           <div class={labelBase} title="Goal">💰</div>
         </div>
-        <div 
-            class="{cardBase} border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent cursor-help"
-            onmouseenter={showFinishObscurity}
-            onmouseleave={() => activeObscurity = null}
-        >
+        <div class="{cardBase} border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent cursor-help" onmouseenter={showFinishObscurity} onmouseleave={() => activeObscurity = null}>
           <span class="font-mono text-2xl font-black tracking-[0.2em] text-emerald-400 animate-pulse">{game.finishWord}</span>
           <div class="w-8 h-8 rounded-full border-2 border-emerald-500/20 flex items-center justify-center">
             <div class="w-2 h-2 rounded-full bg-emerald-500"></div>

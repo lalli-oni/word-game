@@ -32,6 +32,7 @@ export class GameEngine {
   isGameOver = $state(false);
   score = $state(0);
   isSolving = $state(false);
+  isGenerating = $state(false);
   
   // Config
   #allowProfanity = $state(false);
@@ -96,26 +97,21 @@ export class GameEngine {
   }
 
   private loadGameState() {
-      // Priority 1: URL Parameters (Challenges)
       const params = new URLSearchParams(window.location.search);
       const urlStart = params.get('s');
       const urlEnd = params.get('e');
 
       if (urlStart && urlEnd) {
-          console.log('Loading journey from URL...');
           this.startWord = urlStart.toUpperCase();
           this.finishWord = urlEnd.toUpperCase();
           this.currentWord = this.startWord;
           this.history = [{ word: this.startWord, type: 'initial', timestamp: Date.now(), obscurity: 0, moveScore: 0 }];
           this.isGameOver = false;
           this.score = 0;
-          
-          // Clear URL so refreshing doesn't restart the journey
           window.history.replaceState({}, '', window.location.pathname);
           return;
       }
 
-      // Priority 2: LocalStorage
       try {
           const saved = localStorage.getItem(STATE_KEY);
           if (saved) {
@@ -161,27 +157,34 @@ export class GameEngine {
   }
 
   async loadRandomJourney() {
-      let start = await dictionaryService.getRandomWord(this.#randomWordLength);
-      let finish = await dictionaryService.getRandomWord(this.#randomWordLength);
+      if (this.isGenerating) return;
+      this.isGenerating = true;
       
+      let start = '';
+      let finish = '';
       let attempts = 0;
-      while (attempts < 30) {
-          start = await dictionaryService.getRandomWord(this.#randomWordLength);
-          finish = await dictionaryService.getRandomWord(this.#randomWordLength);
-          if (start === finish) continue;
-          
-          const path = await dictionaryService.findShortestPath(start, finish, 5);
-          if (path && path.length >= 3) break;
-          attempts++;
-      }
+      
+      try {
+          while (attempts < 30) {
+              start = await dictionaryService.getRandomWord(this.#randomWordLength);
+              finish = await dictionaryService.getRandomWord(this.#randomWordLength);
+              if (start === finish) continue;
+              
+              const path = await dictionaryService.findShortestPath(start, finish, 5);
+              if (path && path.length >= 3) break;
+              attempts++;
+          }
 
-      this.loadJourney({
-          id: 'random-' + Date.now(),
-          name: 'Mysterious Journey',
-          startWord: start,
-          finishWord: finish,
-          difficulty: 'medium'
-      });
+          this.loadJourney({
+              id: 'random-' + Date.now(),
+              name: 'Mysterious Journey',
+              startWord: start,
+              finishWord: finish,
+              difficulty: 'medium'
+          });
+      } finally {
+          this.isGenerating = false;
+      }
   }
 
   async solve() {
