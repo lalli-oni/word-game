@@ -20,8 +20,15 @@ export interface ValidationResult {
   obscurity?: number;
 }
 
+export interface JourneyResult {
+    journeyId: string;
+    completedAt: number;
+    score: number;
+}
+
 const CONFIG_KEY = 'word_connection_config';
 const STATE_KEY = 'word_connection_game_state';
+const COMPLETED_KEY = 'word_connection_completed';
 
 export class GameEngine {
   // Game State
@@ -33,6 +40,10 @@ export class GameEngine {
   score = $state(0);
   isSolving = $state(false);
   isGenerating = $state(false);
+  currentJourneyId = $state('tutorial');
+  
+  // Stats
+  completedJourneys = $state<Record<string, JourneyResult>>({});
   
   // Config
   #allowProfanity = $state(false);
@@ -62,6 +73,7 @@ export class GameEngine {
   constructor() {
       this.loadConfig();
       this.loadGameState();
+      this.loadCompleted();
       this.init();
   }
 
@@ -92,7 +104,8 @@ export class GameEngine {
           currentWord: this.currentWord,
           history: this.history,
           isGameOver: this.isGameOver,
-          score: this.score
+          score: this.score,
+          currentJourneyId: this.currentJourneyId
       }));
   }
 
@@ -108,6 +121,7 @@ export class GameEngine {
           this.history = [{ word: this.startWord, type: 'initial', timestamp: Date.now(), obscurity: 0, moveScore: 0 }];
           this.isGameOver = false;
           this.score = 0;
+          this.currentJourneyId = 'shared';
           window.history.replaceState({}, '', window.location.pathname);
           return;
       }
@@ -122,8 +136,23 @@ export class GameEngine {
               this.history = parsed.history;
               this.isGameOver = parsed.isGameOver;
               this.score = parsed.score;
+              this.currentJourneyId = parsed.currentJourneyId || 'tutorial';
           }
       } catch (e) { console.error('Failed to load game state', e); }
+  }
+
+  private loadCompleted() {
+      try {
+          const saved = localStorage.getItem(COMPLETED_KEY);
+          if (saved) {
+              this.completedJourneys = JSON.parse(saved);
+          }
+      } catch (e) { console.error('Failed to load completed journeys', e); }
+  }
+
+  private saveCompleted(journeyId: string, result: JourneyResult) {
+      this.completedJourneys[journeyId] = result;
+      localStorage.setItem(COMPLETED_KEY, JSON.stringify(this.completedJourneys));
   }
 
   async init() {
@@ -151,6 +180,7 @@ export class GameEngine {
       this.history = [{ word: start, type: 'initial', timestamp: Date.now(), obscurity: 0, moveScore: 0 }];
       this.isGameOver = false;
       this.score = 0;
+      this.currentJourneyId = journey.id;
       this.#validSemanticMoves = { synonyms: [], antonyms: [] };
       this.#refreshSemanticMoves(start);
       this.saveGameState();
@@ -305,8 +335,17 @@ export class GameEngine {
           obscurity: validation.obscurity,
           moveScore
       });
+      
       this.isGameOver = (word === this.finishWord);
       this.score += moveScore;
+
+      if (this.isGameOver && this.currentJourneyId !== 'shared') {
+          this.saveCompleted(this.currentJourneyId, {
+              journeyId: this.currentJourneyId,
+              completedAt: Date.now(),
+              score: this.score
+          });
+      }
 
       this.#refreshSemanticMoves(word);
       this.saveGameState();

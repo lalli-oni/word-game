@@ -2,6 +2,7 @@
   import { game, type ValidationResult } from './lib/game.svelte';
   import { journeys } from './lib/journeys';
   import { dictionaryService } from './lib/dictionary.svelte';
+  import NavButton from './lib/components/NavButton.svelte';
   import Button from './lib/components/Button.svelte';
   import './app.css';
 
@@ -22,9 +23,9 @@
   let confirmDialog: HTMLDialogElement;
   let pendingAction: (() => void) | null = null;
 
-  const spineBase = "w-12 flex flex-col items-center justify-center shrink-0 h-16";
-  const labelBase = "text-[16px] font-black leading-none";
-  const cardBase = "flex-1 flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all w-full box-border";
+  const cardBase = "flex-1 flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all w-full box-border relative";
+  const spineBase = "w-12 flex flex-col items-center justify-center shrink-0 h-16 relative";
+  const labelBase = "text-[16px] font-black leading-none group relative cursor-help";
 
   async function handleInput() {
     activeErrors = [];
@@ -115,10 +116,10 @@
   }
 
   const legendItems = [
-    { label: 'Morph', color: 'bg-blue-500', tip: 'Change exactly one letter (e.g., CAT → BAT)' },
-    { label: 'Anagram', color: 'bg-pink-500', tip: 'Rearrange the existing letters (e.g., ARC → CAR)' },
-    { label: 'Synonym', color: 'bg-purple-500', tip: 'A word with a similar meaning (e.g., HAPPY → GLAD)' },
-    { label: 'Antonym', color: 'bg-orange-500', tip: 'A word with the opposite meaning (e.g., COLD → HOT)' }
+    { label: 'Morph', color: 'bg-blue-500', tip: 'Change exactly one letter.' , example: 'C<u>A</u>T ➔ C<u>O</u>T' },
+    { label: 'Anagram', color: 'bg-pink-500', tip: 'Rearrange the existing letters.', example: '<u>ARC</u> ➔ <u>CAR</u>' },
+    { label: 'Synonym', color: 'bg-purple-500', tip: 'A word with a similar meaning.', example: '<u>HAPPY</u> ➔ <u>GLAD</u>' },
+    { label: 'Antonym', color: 'bg-orange-500', tip: 'A word with the opposite meaning.', example: '<u>COLD</u> ➔ <u>HOT</u>' }
   ];
 
   function handleBackdropClick(e: MouseEvent, dialog: HTMLDialogElement) {
@@ -172,6 +173,9 @@
       showSharedToast = true;
       setTimeout(() => showSharedToast = false, 3000);
   }
+
+  const difficultyOrder = { easy: 0, medium: 1, hard: 2 };
+  const sortedJourneys = journeys.sort((a, b) => difficultyOrder[a.difficulty] - difficultyOrder[b.difficulty]);
 </script>
 
 <svelte:window onkeydown={handleKeydown} onmousemove={handleMouseMove} />
@@ -218,10 +222,10 @@
   <header class="mb-12 text-center relative w-full max-w-lg">
     <div class="flex flex-col items-center mb-10 animate-in fade-in zoom-in duration-700">
         <div class="flex items-center gap-2">
-            <span class="text-5xl font-black bg-white text-slate-900 px-3 py-1 rounded-2xl transform -rotate-3 shadow-[4px_4px_0px_#3b82f6] border-2 border-slate-900 border-b-4 border-r-4">WORD</span>
+            <span class="text-5xl font-black bg-white text-slate-900 px-3 py-1 rounded-2xl transform -rotate-3 shadow-[4px_4px_0px_#3b82f6] border-2 border-slate-900 border-b-4 border-r-4 uppercase">WORD</span>
             <div class="w-12 h-0.5 border-t-4 border-dashed border-slate-700 self-end mb-4"></div>
         </div>
-        <span class="text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-blue-400 to-emerald-400 transform rotate-2 -mt-2 drop-shadow-2xl">JOURNEY</span>
+        <span class="text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-blue-400 to-emerald-400 transform rotate-2 -mt-2 drop-shadow-2xl uppercase">JOURNEY</span>
     </div>
 
     <div class="flex justify-between items-center px-4 h-[52px]">
@@ -242,7 +246,6 @@
             <span>🪄</span>
         </Button>
         
-        <!-- Refined Random Combo Button -->
         <div 
             class="random-config-container relative flex flex-col items-center group h-full"
             onmouseenter={() => showRandomConfig = true}
@@ -272,7 +275,7 @@
             </div>
             
             {#if showRandomConfig}
-                <div class="absolute top-[48px] left-0 right-0 p-6 pt-10 bg-slate-800 border-2 border-t-0 border-slate-700 rounded-b-[2rem] shadow-2xl z-10 animate-in slide-in-from-top-4 duration-300 w-64 origin-top backdrop-blur-md">
+                <div class="absolute top-[40px] left-0 right-0 p-6 pt-10 bg-slate-800 border-2 border-t-0 border-slate-700 rounded-b-[2rem] shadow-2xl z-10 animate-in slide-in-from-top-4 duration-300 w-64 origin-top backdrop-blur-md">
                     <div class="space-y-6 text-left">
                         <div>
                             <div class="flex justify-between items-end mb-3 text-slate-400">
@@ -325,13 +328,27 @@
             <button onclick={() => levelsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button>
         </div>
         <div class="overflow-y-auto custom-scrollbar p-4 flex flex-col gap-2 text-left">
-            {#each journeys as s}
-              <button onclick={() => confirmIfInProgress(() => selectJourney(s))} class="w-full text-left p-5 bg-slate-900/30 hover:bg-slate-700 border-2 border-slate-700/50 rounded-2xl transition-all group">
+            {#each sortedJourneys as s}
+              {@const result = game.completedJourneys[s.id]}
+              <button 
+                onclick={() => confirmIfInProgress(() => selectJourney(s))} 
+                class="w-full text-left p-5 bg-slate-900/30 hover:bg-slate-700 border-2 border-slate-700/50 rounded-2xl transition-all group relative"
+              >
                 <div class="flex justify-between items-center mb-1">
-                  <span class="font-bold text-slate-200 group-hover:text-blue-400">{s.name}</span>
+                  <div class="flex items-center gap-2">
+                      <span class="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">{s.name}</span>
+                      {#if result}
+                        <span class="text-[10px]" title="Completed!">✅</span>
+                      {/if}
+                  </div>
                   <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-900 text-slate-500 border border-slate-700">{s.difficulty}</span>
                 </div>
-                <p class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{s.startWord} ➔ {s.finishWord}</p>
+                <div class="flex justify-between items-end">
+                    <p class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{s.startWord} ➔ {s.finishWord}</p>
+                    {#if result}
+                        <span class="text-[9px] font-black text-emerald-500 uppercase">Best: {result.score} 🏆</span>
+                    {/if}
+                </div>
               </button>
             {/each}
         </div>
@@ -358,7 +375,13 @@
   <div class="w-full max-w-lg flex flex-col gap-3 pr-2">
     <div class="flex gap-3 items-center">
       <div class={spineBase}>
-        <div class={labelBase} title="Start">🟢</div>
+        <div class={labelBase}>
+            <span>🟢</span>
+            <div class="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-slate-950 text-white text-[10px] font-bold rounded-lg shadow-2xl whitespace-nowrap z-50">
+                Starting word
+                <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-950"></div>
+            </div>
+        </div>
       </div>
       <div class={cardBase} onmouseenter={() => activeObscurity = 0} onmouseleave={() => activeObscurity = null}>
         <span class="font-mono text-2xl font-black tracking-[0.2em] text-slate-400">{game.startWord}</span>
@@ -388,7 +411,7 @@
     </div>
 
     {#if game.isGameOver}
-      <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-[2.5rem] backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl">
+      <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-3xl backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl">
         <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter">Success</div>
         <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8 italic">Journey completed in {game.history.length - 1} steps</p>
         <div class="flex flex-col gap-4 items-center">
@@ -430,9 +453,15 @@
         {/if}
       </div>
 
-      <div class="flex gap-3 items-center mt-2 text-left">
+      <div class="flex gap-3 items-center mt-2 text-left group">
         <div class={spineBase}>
-          <div class={labelBase} title="Goal">💰</div>
+          <div class={labelBase}>
+              <span>💎</span>
+              <div class="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-slate-950 text-white text-[10px] font-bold rounded-lg shadow-2xl whitespace-nowrap z-50">
+                  Final word. You need to get here!
+                  <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-950"></div>
+              </div>
+          </div>
         </div>
         <div class="{cardBase} border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent cursor-help" onmouseenter={showFinishObscurity} onmouseleave={() => activeObscurity = null}>
           <span class="font-mono text-2xl font-black tracking-[0.2em] text-emerald-400 animate-pulse">{game.finishWord}</span>
@@ -444,14 +473,18 @@
     {/if}
   </div>
 
-  <section class="mt-12 max-w-lg w-full px-4 text-center text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
-    <div class="grid grid-cols-4 gap-4 mb-8">
+  <section class="mt-12 max-w-lg w-full px-4">
+    <div class="grid grid-cols-4 gap-4 mb-8 text-center text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
       {#each legendItems as item}
         <div class="group relative flex flex-col items-center cursor-help">
           <div class="w-full h-1.5 {item.color} rounded-full mb-2 opacity-40 group-hover:opacity-100 transition-all group-hover:scale-y-150"></div>
           <span class="text-[9px] font-black uppercase tracking-widest text-slate-500 group-hover:text-slate-300 transition-colors">{item.label}</span>
-          <div class="invisible group-hover:visible absolute bottom-full mb-4 w-56 p-4 bg-slate-800 border-2 border-slate-700 rounded-2xl shadow-2xl text-[10px] text-slate-400 leading-relaxed z-30 animate-in fade-in slide-in-from-bottom-2 text-left">
-            <p class="font-medium">{item.tip}</p>
+          <div class="invisible group-hover:visible absolute bottom-full mb-4 w-56 p-5 bg-slate-800 border-2 border-slate-700 rounded-2xl shadow-2xl text-[10px] text-slate-400 leading-relaxed z-30 animate-in fade-in slide-in-from-bottom-2 text-left">
+            <p class="font-bold mb-2 text-slate-200">{item.tip}</p>
+            <div class="bg-slate-950/50 p-2 rounded-xl font-mono text-[11px] flex justify-center items-center gap-3">
+                <span>Example:</span>
+                <span class="text-white">{@html item.example}</span>
+            </div>
             <div class="absolute top-full left-1/2 -translate-x-1/2 border-[10px] border-transparent border-t-slate-800"></div>
           </div>
         </div>
