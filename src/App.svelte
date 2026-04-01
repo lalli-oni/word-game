@@ -126,10 +126,46 @@
   }
 
   const legendItems = [
-    { label: 'Morph', color: 'bg-blue-500', tip: 'Change exactly one letter.' , example: 'C<u>A</u>T ➔ C<u>O</u>T' },
-    { label: 'Anagram', color: 'bg-pink-500', tip: 'Rearrange the existing letters.', example: '<u>ARC</u> ➔ <u>CAR</u>' },
-    { label: 'Synonym', color: 'bg-purple-500', tip: 'A word with a similar meaning.', example: '<u>HAPPY</u> ➔ <u>GLAD</u>' },
-    { label: 'Antonym', color: 'bg-orange-500', tip: 'A word with the opposite meaning.', example: '<u>COLD</u> ➔ <u>HOT</u>' }
+    { 
+        label: 'Morph', 
+        color: 'bg-blue-500', 
+        tip: 'Change exactly one letter.', 
+        examples: [
+            'C<u class="decoration-blue-500 decoration-2">A</u>T ➔ C<u class="decoration-blue-500 decoration-2">O</u>T',
+            'F<u class="decoration-blue-500 decoration-2">I</u>RE ➔ F<u class="decoration-blue-500 decoration-2">A</u>RE',
+            'B<u class="decoration-blue-500 decoration-2">E</u>AR ➔ B<u class="decoration-blue-500 decoration-2">O</u>AR'
+        ] 
+    },
+    { 
+        label: 'Anagram', 
+        color: 'bg-pink-500', 
+        tip: 'Rearrange the existing letters.', 
+        examples: [
+            '<u class="decoration-pink-500 decoration-2">ARC</u> ➔ <u class="decoration-pink-500 decoration-2">CAR</u>',
+            '<u class="decoration-pink-500 decoration-2">EAR</u> ➔ <u class="decoration-pink-500 decoration-2">ARE</u>',
+            '<u class="decoration-pink-500 decoration-2">DIRE</u> ➔ <u class="decoration-pink-500 decoration-2">RIDE</u>'
+        ] 
+    },
+    { 
+        label: 'Synonym', 
+        color: 'bg-purple-500', 
+        tip: 'A word with a similar meaning.', 
+        examples: [
+            '<u class="decoration-purple-500 decoration-2">HAPPY</u> ➔ <u class="decoration-purple-500 decoration-2">GLAD</u>',
+            '<u class="decoration-purple-500 decoration-2">SMALL</u> ➔ <u class="decoration-purple-500 decoration-2">TINY</u>',
+            '<u class="decoration-purple-500 decoration-2">FAST</u> ➔ <u class="decoration-purple-500 decoration-2">QUICK</u>'
+        ] 
+    },
+    { 
+        label: 'Antonym', 
+        color: 'bg-orange-500', 
+        tip: 'A word with the opposite meaning.', 
+        examples: [
+            '<u class="decoration-orange-500 decoration-2">COLD</u> ➔ <u class="decoration-orange-500 decoration-2">HOT</u>',
+            '<u class="decoration-orange-500 decoration-2">LOVE</u> ➔ <u class="decoration-orange-500 decoration-2">HATE</u>',
+            '<u class="decoration-orange-500 decoration-2">DARK</u> ➔ <u class="decoration-orange-500 decoration-2">LIGHT</u>'
+        ] 
+    }
   ];
 
   function handleBackdropClick(e: MouseEvent, dialog: HTMLDialogElement) {
@@ -196,6 +232,10 @@
 
   $effect(() => {
       handleScroll();
+      // Clear guess on new journey (game.startWord changes)
+      if (game.startWord) {
+          guess = '';
+      }
   });
 </script>
 
@@ -343,6 +383,29 @@
     </div>
   </header>
 
+  <!-- Legend Section -->
+  <section class="flex-none w-full max-w-lg px-6 pt-2 pb-6">
+    <div class="flex justify-between gap-4 text-center text-slate-500 font-bold uppercase text-[9px] tracking-[0.2em]">
+      {#each legendItems as item}
+        <div class="group relative flex flex-col items-center cursor-help flex-1">
+          <div class="w-full h-1.5 {item.color} rounded-full mb-2 opacity-40 group-hover:opacity-100 transition-all group-hover:scale-y-150"></div>
+          <span class="group-hover:text-slate-300 transition-colors">{item.label}</span>
+          <div class="invisible group-hover:visible absolute top-full mt-4 w-56 p-5 bg-slate-800 border-2 border-slate-700 rounded-2xl shadow-2xl text-[10px] text-slate-400 leading-relaxed z-[110] animate-in fade-in slide-in-from-top-2 text-left">
+            <p class="font-bold mb-3 text-slate-200 uppercase tracking-widest">{item.tip}</p>
+            <div class="bg-slate-950/50 p-3 rounded-xl font-mono text-[10px] space-y-2">
+                {#each item.examples as ex}
+                    <div class="flex justify-between items-center text-white border-b border-slate-800 last:border-0 pb-1 last:pb-0">
+                        <span>{@html ex}</span>
+                    </div>
+                {/each}
+            </div>
+            <div class="absolute bottom-full left-1/2 -translate-x-1/2 border-[10px] border-transparent border-b-slate-800"></div>
+          </div>
+        </div>
+      {/each}
+    </div>
+  </section>
+
   <div class="flex-1 w-full max-w-lg px-4 flex flex-col gap-3 min-h-0 relative">
     <!-- Scroll Indicators -->
     {#if showTopIndicator}
@@ -365,7 +428,7 @@
                 <span>🟢</span>
             </div>
           </div>
-          <JourneyTile word={game.startWord} isStart onmouseenter={() => activeObscurity = 0} onmouseleave={() => activeObscurity = null} />
+          <JourneyTile word={game.startWord} isStart score={0} onmouseenter={() => activeObscurity = 0} onmouseleave={() => activeObscurity = null} />
         </div>
 
         <!-- History -->
@@ -453,23 +516,6 @@
             <p class="text-[10px] font-black uppercase text-slate-500 tracking-widest animate-pulse">Click the Treasure Chest to see results</p>
         </div>
     {/if}
-
-    <div class="mt-8 flex justify-between gap-2 px-2 text-center text-slate-500 font-bold uppercase text-[9px] tracking-[0.2em]">
-      {#each legendItems as item}
-        <div class="group relative flex flex-col items-center cursor-help flex-1">
-          <div class="w-full h-1 {item.color} rounded-full mb-2 opacity-40 group-hover:opacity-100 transition-all group-hover:scale-y-150"></div>
-          <span class="group-hover:text-slate-300 transition-colors">{item.label}</span>
-          <div class="invisible group-hover:visible absolute bottom-full mb-4 w-56 p-5 bg-slate-800 border-2 border-slate-700 rounded-2xl shadow-2xl text-[10px] text-slate-400 leading-relaxed z-[110] animate-in fade-in slide-in-from-bottom-2 text-left">
-            <p class="font-bold mb-2 text-slate-200">{item.tip}</p>
-            <div class="bg-slate-950/50 p-2 rounded-xl font-mono text-[11px] flex justify-center items-center gap-3">
-                <span>Example:</span>
-                <span class="text-white">{@html item.example}</span>
-            </div>
-            <div class="absolute top-full left-1/2 -translate-x-1/2 border-[10px] border-transparent border-t-slate-800"></div>
-          </div>
-        </div>
-      {/each}
-    </div>
   </footer>
 </div>
 

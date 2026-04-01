@@ -218,14 +218,18 @@ export class GameEngine {
               // Use a slightly larger maxSteps for generation to ensure solvability
               const path = await dictionaryService.findShortestPath(start, finish, 6);
               if (path && path.length >= 3) {
+                  let difficulty: 'easy' | 'medium' | 'hard' = 'medium';
+                  if (path.length <= 3) difficulty = 'easy';
+                  else if (path.length >= 6) difficulty = 'hard';
+
                   this.#pregeneratedJourney = {
                       id: 'random-' + Date.now(),
                       name: 'Mysterious Journey',
                       startWord: start,
                       finishWord: finish,
-                      difficulty: 'medium'
+                      difficulty
                   };
-                  console.log(`[Generator] Pregenerated: ${start} -> ${finish} (${path.length} steps)`);
+                  console.log(`[Generator] Pregenerated: ${start} -> ${finish} (${path.length} steps, ${difficulty})`);
                   break;
               }
               attempts++;
