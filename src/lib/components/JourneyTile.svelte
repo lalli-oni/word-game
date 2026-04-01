@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { type Move, type ValidationResult, game } from '../game.svelte';
+  import { type ValidationResult } from '../game.svelte';
+  import Tooltip from './Tooltip.svelte';
 
   type Props = {
     word: string;
@@ -9,28 +10,18 @@
     isGoal?: boolean;
     obscurity?: number;
     validation?: ValidationResult;
+    flash?: boolean;
     onmouseenter?: () => void;
     onmouseleave?: () => void;
+    onclick?: () => void;
   };
 
-  let { word, type, score, isStart, isGoal, obscurity, validation, onmouseenter, onmouseleave }: Props = $props();
-
-  const getObscurityLabel = (val: number) => {
-      if (val <= 1) return 'Common';
-      if (val <= 3) return 'Typical';
-      if (val <= 6) return 'Rare';
-      return 'Obscure';
-  };
-
-  const getObscurityColor = (val: number) => {
-      if (val <= 1) return 'text-emerald-400';
-      if (val <= 3) return 'text-blue-400';
-      if (val <= 6) return 'text-purple-400';
-      return 'text-pink-400';
-  };
+  let { word, type, score, isStart, isGoal, obscurity, validation, flash = false, onmouseenter, onmouseleave, onclick }: Props = $props();
 </script>
 
 <div class="flex items-center gap-3 w-full group/row">
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div 
         class="flex-1 flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all box-border relative group/card overflow-visible"
         class:border-l-4={type && type !== 'initial'}
@@ -39,57 +30,75 @@
         class:border-l-orange-500={type === 'antonym'}
         class:border-l-pink-500={type === 'anagram'}
         class:border-emerald-500={isGoal}
+        class:cursor-pointer={onclick}
+        class:animate-flash={flash}
         {onmouseenter}
         {onmouseleave}
+        {onclick}
     >
-        <span class="font-mono text-2xl font-black tracking-[0.2em] {isGoal ? 'text-emerald-400 animate-pulse' : 'text-slate-400'} group-hover/card:text-white transition-colors">
+        <span class="font-mono text-2xl font-black tracking-[0.2em] transition-colors"
+              class:text-emerald-400={isGoal}
+              class:animate-pulse={isGoal && !flash}
+              class:text-white={true}
+              class:drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]={!isGoal}
+        >
             {word}
         </span>
 
         <div class="flex items-center gap-2">
             {#if type && type !== 'initial'}
-                <span class="text-[8px] font-black uppercase tracking-tighter text-slate-500 bg-slate-900/50 px-1.5 py-0.5 rounded border border-slate-700/50">
+                <span class="text-[10px] font-black uppercase tracking-tighter text-slate-100 bg-slate-900/50 px-2 py-0.5 rounded border border-slate-700/50">
                     {type === 'letter' ? 'morph' : type}
                 </span>
             {/if}
 
             {#if isStart}
-                <div class="w-2 h-2 rounded-full bg-slate-600"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-slate-100 shadow-[0_0_10px_rgba(255,255,255,0.4)]"></div>
             {/if}
 
             {#if isGoal}
                 <div class="w-8 h-8 rounded-full border-2 border-emerald-500/20 flex items-center justify-center">
-                    <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                    <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_15px_#34d399]"></div>
                 </div>
             {/if}
         </div>
     </div>
 
-    <!-- Move Score (Fixed width on the right) -->
+    <!-- Move Score -->
     <div class="w-12 shrink-0 flex flex-col items-center justify-center">
         {#if score !== undefined}
-            <div class="group/score relative cursor-help">
-                <span class="text-[11px] font-black text-slate-500 group-hover/row:text-slate-300 transition-colors">+{score}</span>
-                <!-- Score Breakdown Tooltip -->
-                <div class="invisible group-hover/score:visible absolute bottom-full right-0 mb-3 w-48 p-4 bg-slate-950 text-white rounded-[1.5rem] shadow-2xl z-[100] text-[10px] leading-relaxed animate-in fade-in zoom-in duration-100 border border-slate-800 pointer-events-none">
-                    <p class="font-black uppercase tracking-widest text-slate-500 mb-2 border-b border-slate-800 pb-1">Score Breakdown</p>
-                    <div class="space-y-1">
-                        <div class="flex justify-between">
-                            <span class="text-slate-400">Base Move</span>
-                            <span class="font-mono">100</span>
+            <Tooltip title="Score Breakdown">
+                {#snippet children()}
+                    <span class="text-sm font-black text-slate-100 group-hover/row:text-white transition-colors cursor-help">+{score}</span>
+                {/snippet}
+                {#snippet content()}
+                    <div class="space-y-3 min-w-[160px]">
+                        <div class="flex justify-between items-center text-[12px]">
+                            <span class="text-slate-400 font-bold uppercase tracking-widest">Base Move</span>
+                            <span class="font-mono font-black text-white">100</span>
                         </div>
-                        <div class="flex justify-between text-emerald-400">
-                            <span class="italic">Rarity Bonus</span>
-                            <span class="font-mono">-{100 - score}</span>
+                        <div class="flex justify-between items-center text-[12px] text-emerald-400">
+                            <span class="italic font-bold">Rarity Bonus</span>
+                            <span class="font-mono font-black">-{100 - score}</span>
                         </div>
-                        <div class="flex justify-between font-black mt-2 pt-2 border-t border-slate-800 text-sm">
-                            <span>TOTAL</span>
+                        <div class="flex justify-between items-center font-black mt-4 pt-4 border-t-2 border-slate-800 text-lg">
+                            <span class="uppercase tracking-tighter">TOTAL</span>
                             <span class="text-white font-mono">{score}</span>
                         </div>
                     </div>
-                    <div class="absolute top-full right-4 border-8 border-transparent border-t-slate-950"></div>
-                </div>
-            </div>
+                {/snippet}
+            </Tooltip>
         {/if}
     </div>
 </div>
+
+<style>
+    @keyframes flash {
+        0%, 100% { background-color: rgba(30, 41, 59, 0.4); border-color: #334155; }
+        50% { background-color: rgba(239, 68, 68, 0.6); border-color: #ef4444; transform: scale(1.02); }
+    }
+    .animate-flash {
+        animation: flash 0.3s ease-in-out 3;
+        z-index: 50;
+    }
+</style>
