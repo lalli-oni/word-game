@@ -27,6 +27,7 @@
   let confirmTitle = $state('Abandon Journey?');
   let confirmBody = $state('Your current progress will be lost forever.');
   let confirmActionLabel = $state('ABANDON');
+  let confirmCancelLabel = $state('STAY ON JOURNEY');
 
   const spineBase = "w-12 flex flex-col items-center justify-center shrink-0 h-16 relative";
   const labelBase = "text-[16px] font-black leading-none group relative cursor-help";
@@ -60,11 +61,12 @@
       setTimeout(() => isShaking = false, 500);
   }
 
-  function confirmAction(title: string, body: string, label: string, action: () => void) {
+  function confirmAction(title: string, body: string, label: string, cancel: string, action: () => void) {
       if (game.history.length > 1 && !game.isGameOver) {
           confirmTitle = title;
           confirmBody = body;
           confirmActionLabel = label;
+          confirmCancelLabel = cancel;
           pendingAction = action;
           confirmDialog.showModal();
       } else {
@@ -228,15 +230,22 @@
     </div>
 
     <div class="flex justify-between items-center px-4 h-[52px]">
-      <div class="flex gap-2 h-full">
-        <Button variant="secondary" size="icon" onclick={() => levelsDialog.showModal()} tooltip="Choose Journey" disabled={game.isGenerating || game.isSolving} class="h-full">
+      <div class="flex gap-2 h-full items-center">
+        <Button 
+            variant="secondary" 
+            size="icon" 
+            onclick={() => levelsDialog.showModal()} 
+            tooltip="Choose Journey" 
+            disabled={game.isGenerating || game.isSolving} 
+            class="h-full"
+        >
             <span>🗺️</span>
         </Button>
 
         <Button 
             variant="secondary" 
             size="icon" 
-            onclick={() => confirmAction('Magic Path?', 'The wand will automatically find the shortest path from your current word.', 'ACTIVATE MAGIC', () => game.solve())} 
+            onclick={() => confirmAction('Wave your wand?', 'Waving your wand will automatically find the shortest path to the final word from your current location.', 'WAVE THE WAND', 'I CAN DO IT MYSELF!', () => game.solve())} 
             loading={game.isSolving}
             tooltip="Magic Path"
             disabled={game.isGenerating}
@@ -252,7 +261,7 @@
         >
             <div class="relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl h-full z-20 transition-all overflow-hidden" class:rounded-b-none={showRandomConfig}>
                 <button 
-                    onclick={() => confirmAction('Abandon Journey?', 'Your current progress will be lost if you start a new random journey.', 'START NEW', startRandom)}
+                    onclick={() => confirmAction('Abandon Journey?', 'Starting a new journey will clear your current progress.', 'START NEW', 'STAY ON JOURNEY', startRandom)}
                     disabled={game.isGenerating || game.isSolving}
                     class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 h-full px-4 transition-all active:scale-95 leading-none border-r border-blue-700 shrink-0 text-white disabled:opacity-50"
                 >
@@ -314,7 +323,7 @@
         <p class="text-slate-400 text-sm mb-8">{confirmBody}</p>
         <div class="flex flex-col gap-2">
             <Button variant="danger" onclick={() => { pendingAction?.(); confirmDialog.close(); }}>{confirmActionLabel}</Button>
-            <Button variant="secondary" onclick={() => confirmDialog.close()}>STAY ON JOURNEY</Button>
+            <Button variant="secondary" onclick={() => confirmDialog.close()}>{confirmCancelLabel}</Button>
         </div>
     </div>
   </dialog>
@@ -330,7 +339,7 @@
             {#each sortedJourneys as s}
               {@const result = game.completedJourneys[s.id]}
               <button 
-                onclick={() => confirmAction('Abandon Journey?', 'Starting a new journey will clear your current progress.', 'START NEW', () => selectJourney(s))} 
+                onclick={() => confirmAction('Abandon Journey?', 'Starting a new journey will clear your current progress.', 'START NEW', 'STAY ON JOURNEY', () => selectJourney(s))} 
                 class="w-full text-left p-5 bg-slate-900/30 hover:bg-slate-700 border-2 border-slate-700/50 rounded-2xl transition-all group relative"
               >
                 <div class="flex justify-between items-center mb-1">
@@ -354,7 +363,7 @@
     </div>
   </dialog>
 
-  <!-- Gear Dialog -->
+  <!-- Settings Dialog -->
   <dialog bind:this={settingsDialog} onclick={(e) => handleBackdropClick(e, settingsDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-md outline-none">
     <div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl p-8">
         <div class="flex justify-between items-center mb-8">
@@ -371,7 +380,6 @@
     </div>
   </dialog>
 
-  <!-- Game Path -->
   <div class="w-full max-w-lg flex flex-col gap-3 pr-2">
     <div class="flex gap-3 items-center">
       <div class={spineBase}>
@@ -401,19 +409,34 @@
     </div>
 
     {#if game.isGameOver}
-      <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-[3rem] backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl">
-        <div class="w-24 h-24 mx-auto mb-4">
-            <TreasureChest open />
-        </div>
-        <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter">Success</div>
-        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8 italic">Journey completed in {game.history.length - 1} steps</p>
-        <div class="flex flex-col gap-4 items-center">
-            <div class="flex gap-3 justify-center">
-              <Button variant="secondary" onclick={() => confirmAction('Abandon Journey?', 'Retrying will clear your current progress.', 'RETRY', () => game.reset())}>RETRY</Button>
-              <Button variant="secondary" onclick={() => levelsDialog.showModal()}>NEW JOURNEY</Button>
+      <div class="flex flex-col gap-4">
+          <div class="flex gap-3 items-center mt-2 text-left group">
+            <div class={spineBase}>
+              <div class={labelBase} onmouseenter={() => globalTooltip = 'Final destination'} onmouseleave={() => globalTooltip = null}>
+                  <div class="w-6 h-6">
+                      <TreasureChest open />
+                  </div>
+              </div>
             </div>
-            <Button size="lg" variant="primary" onclick={shareResult} class="w-full max-w-[240px]">SHARE RESULT</Button>
-        </div>
+            <JourneyTile 
+                word={game.finishWord} 
+                isGoal 
+                onmouseenter={showFinishObscurity} 
+                onmouseleave={() => activeObscurity = null} 
+            />
+          </div>
+          
+          <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-[2.5rem] backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl">
+            <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter">Success</div>
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8 italic">Journey completed in {game.history.length - 1} steps</p>
+            <div class="flex flex-col gap-4 items-center">
+                <div class="flex gap-3 justify-center">
+                  <Button variant="secondary" onclick={() => confirmAction('Abandon Journey?', 'Retrying will clear your current progress.', 'RETRY', 'STAY ON JOURNEY', () => game.reset())}>RETRY</Button>
+                  <Button variant="secondary" onclick={() => levelsDialog.showModal()}>NEW JOURNEY</Button>
+                </div>
+                <Button size="md" variant="primary" onclick={shareResult} class="w-full max-w-[200px]">SHARE RESULT</Button>
+            </div>
+          </div>
       </div>
     {:else}
       <div class="flex flex-col gap-2">

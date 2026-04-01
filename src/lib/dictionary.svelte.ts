@@ -10,7 +10,7 @@ export interface DictionaryEntry {
 
 class DictionaryService {
   private dbName = 'WordConnectionDB';
-  private dbVersion = 3; // Match the existing version 3
+  private dbVersion = 3;
   private db: IDBPDatabase | null = null;
   
   status = $state<'idle' | 'hydrating' | 'ready' | 'error'>('idle');
@@ -21,8 +21,10 @@ class DictionaryService {
     if (this.db) return;
 
     try {
+        console.log('[IDB] Initializing...');
         this.db = await openDB(this.dbName, this.dbVersion, {
           upgrade(db, oldVersion, newVersion, transaction) {
+            console.log(`[IDB] Upgrade: ${oldVersion} -> ${newVersion}`);
             let store;
             if (oldVersion < 1) {
               store = db.createObjectStore('dictionary', { keyPath: 'word' });
@@ -34,15 +36,13 @@ class DictionaryService {
             if (oldVersion < 2) {
               store.createIndex('by-length', 'length');
             }
-            
-            // Version 3 added 'rank' field, handled by re-hydration
           },
         });
 
         const count = await this.db.count('dictionary');
         const sample = count > 0 ? await this.db.get('dictionary', 'cold') : null;
         
-        if (count === 0 || (sample && sample.rank === undefined)) {
+        if (count === 0 || (sample && sample.length === undefined)) {
           await this.hydrate();
         } else {
           this.status = 'ready';
@@ -50,7 +50,7 @@ class DictionaryService {
     } catch (e: any) {
         this.status = 'error';
         this.errorMessage = e.message || 'Unknown database error';
-        console.error('DB Init failed:', e);
+        console.error('[IDB] Init error:', e);
         throw e;
     }
   }
@@ -122,46 +122,57 @@ class DictionaryService {
   }
 
   async findShortestPath(start: string, end: string, maxSteps = 6): Promise<string[] | null> {
-      if (!this.db) await this.init();
-      start = start.toLowerCase();
-      end = end.toLowerCase();
-      if (start === end) return [start];
+      try {
+          console.log(`[Solver] Searching path: ${start} -> ${end} (max ${maxSteps} steps)`);
+          if (!this.db) await this.init();
+          
+          start = start.toLowerCase();
+          end = end.toLowerCase();
+          if (start === end) return [start];
 
-      const queue: [string, string[]][] = [[start, [start]]];
-      const visited = new Set([start]);
+          const queue: [string, string[]][] = [[start, [start]]];
+          const visited = new Set([start]);
 
-      // Optimization: Fetch only words of relevant lengths (original +/- 2 for semantic leaps)
-      // but Morph and Anagram require EXACT length.
-      const sameLengthWords = await this.getWordsOfLength(start.length);
+          const sameLengthWords = await this.getWordsOfLength(start.length);
+          console.log(`[Solver] Found ${sameLengthWords.length} words of length ${start.length} for structural checks.`);
 
-      while (queue.length > 0) {
-          const [current, path] = queue.shift()!;
-          if (path.length > maxSteps) continue;
+          while (queue.length > 0) {
+              const [current, path] = queue.shift()!;
+              if (path.length > maxSteps) continue;
 
-          const entry = await this.getEntry(current);
-          if (!entry) continue;
+              const entry = await this.getEntry(current);
+              if (!entry) continue;
 
-          const neighbors = new Set([
-              ...entry.synonyms,
-              ...entry.antonyms
-          ]);
+              const neighbors = new Set([
+                  ...entry.synonyms,
+                  ...entry.antonyms
+              ]);
 
-          for (const candidate of sameLengthWords) {
-              if (candidate === current) continue;
-              if (this.isOneLetterDifferent(current, candidate) || this.isAnagram(current, candidate)) {
-                  neighbors.add(candidate);
+              for (const candidate of sameLengthWords) {
+                  if (candidate === current) continue;
+                  if (this.isOneLetterDifferent(current, candidate) || this.isAnagram(current, candidate)) {
+                      neighbors.add(candidate);
+                  }
+              }
+
+              for (const neighbor of neighbors) {
+                  if (neighbor === end) {
+                      const finalPath = [...path, neighbor];
+                      console.log(`[Solver] Success! Path found: ${finalPath.join(' -> ')}`);
+                      return finalPath;
+                  }
+                  if (!visited.has(neighbor)) {
+                      visited.add(neighbor);
+                      queue.push([neighbor, [...path, neighbor]]);
+                  }
               }
           }
-
-          for (const neighbor of neighbors) {
-              if (neighbor === end) return [...path, neighbor];
-              if (!visited.has(neighbor)) {
-                  visited.add(neighbor);
-                  queue.push([neighbor, [...path, neighbor]]);
-              }
-          }
+          console.warn(`[Solver] No path found between ${start} and ${end} within ${maxSteps} steps.`);
+          return null;
+      } catch (e) {
+          console.error('[Solver] Fatal error:', e);
+          return null;
       }
-      return null;
   }
 
   private async getWordsOfLength(len: number): Promise<string[]> {
