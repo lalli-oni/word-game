@@ -4,6 +4,7 @@
   import { dictionaryService } from './lib/dictionary.svelte';
   import NavButton from './lib/components/NavButton.svelte';
   import Button from './lib/components/Button.svelte';
+  import JourneyTile from './lib/components/JourneyTile.svelte';
   import './app.css';
 
   let guess = $state('');
@@ -17,13 +18,13 @@
   let mouseX = $state(0);
   let mouseY = $state(0);
   let activeObscurity: number | null = $state(null);
+  let globalTooltip: string | null = $state(null);
 
   let levelsDialog: HTMLDialogElement;
   let settingsDialog: HTMLDialogElement;
   let confirmDialog: HTMLDialogElement;
   let pendingAction: (() => void) | null = null;
 
-  const cardBase = "flex-1 flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all w-full box-border relative";
   const spineBase = "w-12 flex flex-col items-center justify-center shrink-0 h-16 relative";
   const labelBase = "text-[16px] font-black leading-none group relative cursor-help";
 
@@ -79,21 +80,6 @@
       guess = '';
       validation = { isValid: false, type: 'unknown', errors: [] };
       activeErrors = [];
-  }
-
-  function getCharacterClasses(char: string, index: number, move: any) {
-    if (move.type === 'initial') return '';
-    const prev = move.previousWord || '';
-    const colors = {
-      letter: 'decoration-blue-500',
-      synonym: 'decoration-purple-500',
-      antonym: 'decoration-orange-500',
-      anagram: 'decoration-pink-500'
-    };
-    const base = 'underline underline-offset-4 decoration-2 ';
-    const colorClass = colors[move.type as keyof typeof colors] || 'decoration-slate-400';
-    if (char !== prev[index]) return base + colorClass;
-    return '';
   }
 
   function getInputCharacterClasses(char: string, index: number, val: ValidationResult) {
@@ -208,6 +194,7 @@
     </div>
 {/if}
 
+<!-- Cursor-following Obscurity Tooltip -->
 {#if activeObscurity !== null}
     <div class="fixed pointer-events-none z-[60] bg-slate-800/90 border-2 border-slate-700 p-2 px-3 rounded-xl shadow-2xl backdrop-blur-md animate-in fade-in zoom-in duration-100 flex flex-col items-center" style="left: {mouseX + 15}px; top: {mouseY + 15}px">
         <span class="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Rarity Rank</span>
@@ -215,6 +202,13 @@
             <span class="text-base font-black {getObscurityColor(activeObscurity)} leading-none">{activeObscurity}</span>
             <span class="text-[10px] font-bold text-slate-300 uppercase">{getObscurityLabel(activeObscurity)}</span>
         </div>
+    </div>
+{/if}
+
+<!-- Global Simple Tooltip -->
+{#if globalTooltip}
+    <div class="fixed pointer-events-none z-[60] bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg shadow-2xl text-[10px] font-bold text-white whitespace-nowrap animate-in fade-in zoom-in duration-75" style="left: {mouseX + 15}px; top: {mouseY + 15}px">
+        {globalTooltip}
     </div>
 {/if}
 
@@ -275,7 +269,7 @@
             </div>
             
             {#if showRandomConfig}
-                <div class="absolute top-[40px] left-0 right-0 p-6 pt-10 bg-slate-800 border-2 border-t-0 border-slate-700 rounded-b-[2rem] shadow-2xl z-10 animate-in slide-in-from-top-4 duration-300 w-64 origin-top backdrop-blur-md">
+                <div class="absolute top-[48px] left-0 right-0 p-6 pt-10 bg-slate-800 border-2 border-t-0 border-slate-700 rounded-b-[2rem] shadow-2xl z-10 animate-in slide-in-from-top-4 duration-300 w-64 origin-top backdrop-blur-md">
                     <div class="space-y-6 text-left">
                         <div>
                             <div class="flex justify-between items-end mb-3 text-slate-400">
@@ -355,7 +349,7 @@
     </div>
   </dialog>
 
-  <!-- Settings Dialog -->
+  <!-- Gear Dialog -->
   <dialog bind:this={settingsDialog} onclick={(e) => handleBackdropClick(e, settingsDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-md outline-none">
     <div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl p-8">
         <div class="flex justify-between items-center mb-8">
@@ -372,21 +366,15 @@
     </div>
   </dialog>
 
+  <!-- Game Path -->
   <div class="w-full max-w-lg flex flex-col gap-3 pr-2">
     <div class="flex gap-3 items-center">
       <div class={spineBase}>
-        <div class={labelBase}>
+        <div class={labelBase} onmouseenter={() => globalTooltip = 'Starting word'} onmouseleave={() => globalTooltip = null}>
             <span>🟢</span>
-            <div class="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-slate-950 text-white text-[10px] font-bold rounded-lg shadow-2xl whitespace-nowrap z-50">
-                Starting word
-                <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-950"></div>
-            </div>
         </div>
       </div>
-      <div class={cardBase} onmouseenter={() => activeObscurity = 0} onmouseleave={() => activeObscurity = null}>
-        <span class="font-mono text-2xl font-black tracking-[0.2em] text-slate-400">{game.startWord}</span>
-        <div class="w-2 h-2 rounded-full bg-slate-600"></div>
-      </div>
+      <JourneyTile word={game.startWord} isStart onmouseenter={() => activeObscurity = 0} onmouseleave={() => activeObscurity = null} />
     </div>
 
     <div class="flex flex-col gap-3 max-h-[50vh] overflow-y-auto custom-scrollbar">
@@ -395,23 +383,21 @@
           <div class={spineBase}>
             <div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg">{i + 1}</div>
           </div>
-          <div class="{cardBase} group relative border-l-4 shadow-lg" class:border-l-blue-500={move.type === 'letter'} class:border-l-purple-500={move.type === 'synonym'} class:border-l-orange-500={move.type === 'antonym'} class:border-l-pink-500={move.type === 'anagram'} onmouseenter={() => activeObscurity = move.obscurity || 0} onmouseleave={() => activeObscurity = null}>
-            <span class="font-mono text-2xl tracking-[0.15em] font-bold">
-              {#each move.word.split('') as char, i}
-                <span class={getCharacterClasses(char, i, move)}>{char}</span>
-              {/each}
-            </span>
-            <div class="flex items-center gap-3">
-                <span class="text-[10px] font-black text-slate-500">+{move.moveScore}</span>
-                <span class="text-[8px] font-black uppercase tracking-tighter text-slate-500">{move.type === 'letter' ? 'morph' : move.type}</span>
-            </div>
-          </div>
+          <JourneyTile 
+            word={move.word} 
+            type={move.type} 
+            score={move.moveScore} 
+            obscurity={move.obscurity}
+            onmouseenter={() => activeObscurity = move.obscurity || 0}
+            onmouseleave={() => activeObscurity = null}
+          />
         </div>
       {/each}
     </div>
 
     {#if game.isGameOver}
-      <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-3xl backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl">
+      <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-[2.5rem] backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl">
+        <div class="text-6xl mb-4">💰</div>
         <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter">Success</div>
         <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8 italic">Journey completed in {game.history.length - 1} steps</p>
         <div class="flex flex-col gap-4 items-center">
@@ -455,26 +441,26 @@
 
       <div class="flex gap-3 items-center mt-2 text-left group">
         <div class={spineBase}>
-          <div class={labelBase}>
-              <span>💎</span>
-              <div class="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-slate-950 text-white text-[10px] font-bold rounded-lg shadow-2xl whitespace-nowrap z-50">
-                  Final word. You need to get here!
-                  <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-950"></div>
-              </div>
+          <div class={labelBase} onmouseenter={() => globalTooltip = 'Final destination'} onmouseleave={() => globalTooltip = null}>
+              <svg class="w-6 h-6 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 7H2v10h20V7zM2 7l10 5 10-5M12 12V22"/>
+                  <rect x="2" y="7" width="20" height="10" rx="2"/>
+                  <circle cx="12" cy="12" r="2" fill="currentColor"/>
+              </svg>
           </div>
         </div>
-        <div class="{cardBase} border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent cursor-help" onmouseenter={showFinishObscurity} onmouseleave={() => activeObscurity = null}>
-          <span class="font-mono text-2xl font-black tracking-[0.2em] text-emerald-400 animate-pulse">{game.finishWord}</span>
-          <div class="w-8 h-8 rounded-full border-2 border-emerald-500/20 flex items-center justify-center">
-            <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-          </div>
-        </div>
+        <JourneyTile 
+            word={game.finishWord} 
+            isGoal 
+            onmouseenter={showFinishObscurity} 
+            onmouseleave={() => activeObscurity = null} 
+        />
       </div>
     {/if}
   </div>
 
-  <section class="mt-12 max-w-lg w-full px-4">
-    <div class="grid grid-cols-4 gap-4 mb-8 text-center text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
+  <section class="mt-12 max-w-lg w-full px-4 text-center text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
+    <div class="grid grid-cols-4 gap-4 mb-8">
       {#each legendItems as item}
         <div class="group relative flex flex-col items-center cursor-help">
           <div class="w-full h-1.5 {item.color} rounded-full mb-2 opacity-40 group-hover:opacity-100 transition-all group-hover:scale-y-150"></div>
