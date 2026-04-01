@@ -23,6 +23,10 @@
   let confirmDialog: HTMLDialogElement;
   let pendingAction: (() => void) | null = null;
 
+  const cardBase = "flex-1 flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all w-full box-border";
+  const spineBase = "w-12 flex flex-col items-center justify-center shrink-0 h-16";
+  const labelBase = "text-[16px] font-black leading-none";
+
   async function handleInput() {
     activeErrors = [];
     if (guess.length >= 2) {
@@ -332,7 +336,7 @@
     </div>
   </dialog>
 
-  <!-- Settings Dialog -->
+  <!-- Gear Dialog -->
   <dialog bind:this={settingsDialog} onclick={(e) => handleBackdropClick(e, settingsDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-md outline-none">
     <div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl p-8">
         <div class="flex justify-between items-center mb-8">
