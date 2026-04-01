@@ -119,18 +119,15 @@ class DictionaryService {
       return cursor?.value.word.toUpperCase() || 'COLD';
   }
 
-  // Implementation of Dijkstra's Algorithm to find the path with the LOWEST score
   async findShortestPath(start: string, end: string, maxSteps = 8): Promise<string[] | null> {
       try {
-          console.log(`[Solver] Searching path: ${start} -> ${end}`);
           if (!this.db) await this.init();
           
           start = start.toLowerCase();
           end = end.toLowerCase();
           if (start === end) return [start];
 
-          // Priority Queue implementation: [word, currentPath, currentScore]
-          // Using a simple sorted array as a priority queue for small number of nodes
+          // Simple priority queue using binary insertion
           let pq: { word: string, path: string[], score: number }[] = [{ word: start, path: [start], score: 0 }];
           const bestScores = new Map<string, number>();
           bestScores.set(start, 0);
@@ -138,20 +135,14 @@ class DictionaryService {
           const sameLengthWords = await this.getWordsOfLength(start.length);
 
           while (pq.length > 0) {
-              // Extract node with lowest score
-              pq.sort((a, b) => a.score - b.score);
               const { word: current, path, score } = pq.shift()!;
 
               if (path.length > maxSteps) continue;
-              if (current === end) {
-                  console.log(`[Solver] Best path found with score ${score}: ${path.join(' -> ')}`);
-                  return path;
-              }
+              if (current === end) return path;
 
               const entry = await this.getEntry(current);
               if (!entry) continue;
 
-              // Collect neighbors
               const neighbors = new Set([...entry.synonyms, ...entry.antonyms]);
               for (const candidate of sameLengthWords) {
                   if (this.isOneLetterDifferent(current, candidate) || this.isAnagram(current, candidate)) {
@@ -163,18 +154,26 @@ class DictionaryService {
                   const neighborEntry = await this.getEntry(neighbor);
                   if (!neighborEntry) continue;
 
-                  // Weight calculation (same as GameEngine)
                   const obscurity = this.calculateObscurity(neighborEntry.rank);
                   const moveScore = Math.max(10, 100 - (obscurity * 8));
                   const newScore = score + moveScore;
 
                   if (!bestScores.has(neighbor) || newScore < bestScores.get(neighbor)!) {
                       bestScores.set(neighbor, newScore);
-                      pq.push({ word: neighbor, path: [...path, neighbor], score: newScore });
+                      
+                      const newNode = { word: neighbor, path: [...path, neighbor], score: newScore };
+                      
+                      // Binary insertion into priority queue
+                      let low = 0, high = pq.length;
+                      while (low < high) {
+                          let mid = (low + high) >>> 1;
+                          if (pq[mid].score < newScore) low = mid + 1;
+                          else high = mid;
+                      }
+                      pq.splice(low, 0, newNode);
                   }
               }
           }
-          console.warn(`[Solver] No path found.`);
           return null;
       } catch (e) {
           console.error('[Solver] Fatal error:', e);

@@ -45,6 +45,10 @@ export class GameEngine {
   // Stats
   completedJourneys = $state<Record<string, JourneyResult>>({});
   
+  // Pre-generation
+  #pregeneratedJourney = $state<Journey | null>(null);
+  #isPregenerating = $state(false);
+
   // Config
   #allowProfanity = $state(false);
   #randomWordLength = $state(4);
@@ -54,18 +58,21 @@ export class GameEngine {
   set allowProfanity(val: boolean) {
       this.#allowProfanity = val;
       this.saveConfig();
+      this.triggerPregenerate();
   }
 
   get randomWordLength() { return this.#randomWordLength; }
   set randomWordLength(val: number) {
       this.#randomWordLength = val;
       this.saveConfig();
+      this.triggerPregenerate();
   }
 
   get randomMaxObscurity() { return this.#randomMaxObscurity; }
   set randomMaxObscurity(val: number) {
       this.#randomMaxObscurity = val;
       this.saveConfig();
+      this.triggerPregenerate();
   }
   
   #validSemanticMoves = $state<{ synonyms: string[], antonyms: string[] }>({ synonyms: [], antonyms: [] });
@@ -158,6 +165,7 @@ export class GameEngine {
   async init() {
       await dictionaryService.init();
       this.#refreshSemanticMoves(this.currentWord);
+      this.triggerPregenerate();
   }
 
   async #refreshSemanticMoves(word: string) {
@@ -184,35 +192,74 @@ export class GameEngine {
       this.#validSemanticMoves = { synonyms: [], antonyms: [] };
       this.#refreshSemanticMoves(start);
       this.saveGameState();
+      this.triggerPregenerate();
   }
 
-  async loadRandomJourney() {
-      if (this.isGenerating) return;
-      this.isGenerating = true;
+  private triggerPregenerate() {
+      if (this.#isPregenerating) return;
+      this.#pregeneratedJourney = null;
+      this.pregenerateRandomJourney();
+  }
+
+  private async pregenerateRandomJourney() {
+      this.#isPregenerating = true;
+      console.time('[Generator] Pregeneration');
       
       let start = '';
       let finish = '';
       let attempts = 0;
       
       try {
-          while (attempts < 30) {
+          while (attempts < 50) {
               start = await dictionaryService.getRandomWord(this.#randomWordLength);
               finish = await dictionaryService.getRandomWord(this.#randomWordLength);
               if (start === finish) continue;
               
-              const path = await dictionaryService.findShortestPath(start, finish, 5);
-              if (path && path.length >= 3) break;
+              // Use a slightly larger maxSteps for generation to ensure solvability
+              const path = await dictionaryService.findShortestPath(start, finish, 6);
+              if (path && path.length >= 3) {
+                  this.#pregeneratedJourney = {
+                      id: 'random-' + Date.now(),
+                      name: 'Mysterious Journey',
+                      startWord: start,
+                      finishWord: finish,
+                      difficulty: 'medium'
+                  };
+                  console.log(`[Generator] Pregenerated: ${start} -> ${finish} (${path.length} steps)`);
+                  break;
+              }
               attempts++;
           }
-
-          this.loadJourney({
-              id: 'random-' + Date.now(),
-              name: 'Mysterious Journey',
-              startWord: start,
-              finishWord: finish,
-              difficulty: 'medium'
-          });
       } finally {
+          console.timeEnd('[Generator] Pregeneration');
+          this.#isPregenerating = false;
+      }
+  }
+
+  async loadRandomJourney() {
+      if (this.isGenerating) return;
+
+      if (this.#pregeneratedJourney) {
+          this.loadJourney(this.#pregeneratedJourney);
+          this.#pregeneratedJourney = null;
+          this.triggerPregenerate();
+          return;
+      }
+
+      this.isGenerating = true;
+      console.time('[Generator] Direct Generation');
+      
+      try {
+          while (!this.#pregeneratedJourney) {
+              await this.pregenerateRandomJourney();
+              if (this.#pregeneratedJourney) break;
+              await new Promise(r => setTimeout(r, 100)); // Prevent tight loop
+          }
+          this.loadJourney(this.#pregeneratedJourney!);
+          this.#pregeneratedJourney = null;
+          this.triggerPregenerate();
+      } finally {
+          console.timeEnd('[Generator] Direct Generation');
           this.isGenerating = false;
       }
   }
@@ -221,14 +268,18 @@ export class GameEngine {
       if (this.isGameOver || this.isSolving) return;
       this.isSolving = true;
 
-      const path = await dictionaryService.findShortestPath(this.currentWord, this.finishWord, 8);
+      console.time('[Solver] Dijkstra');
+      const path = await dictionaryService.findShortestPath(this.currentWord, this.finishWord, 10);
+      console.timeEnd('[Solver] Dijkstra');
+
       if (!path) {
+          console.error('[Solver] No path found!');
           this.isSolving = false;
           return;
       }
 
       for (let i = 1; i < path.length; i++) {
-          await new Promise(r => setTimeout(r, 600));
+          await new Promise(r => setTimeout(r, 400));
           await this.makeMove(path[i]);
       }
       
