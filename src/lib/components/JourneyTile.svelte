@@ -31,7 +31,7 @@
 </script>
 
 <div 
-    class="flex-1 flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all w-full box-border relative group/card"
+    class="flex-1 flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all w-full box-border relative group/card overflow-visible"
     class:border-l-4={type && type !== 'initial'}
     class:border-l-blue-500={type === 'letter'}
     class:border-l-purple-500={type === 'synonym'}
@@ -47,24 +47,26 @@
 
     <div class="flex items-center gap-3">
         {#if score !== undefined}
-            <div class="group/score relative cursor-help">
+            <div class="group/score relative cursor-help flex flex-col items-end">
                 <span class="text-[10px] font-black text-slate-500">+{score}</span>
                 <!-- Score Breakdown Tooltip -->
-                <div class="invisible group-hover/score:visible absolute bottom-full right-0 mb-2 w-48 p-3 bg-slate-950 text-white rounded-xl shadow-2xl z-50 text-[10px] leading-relaxed animate-in fade-in zoom-in duration-100 border border-slate-800">
-                    <p class="font-black uppercase tracking-widest text-slate-500 mb-1">Score Breakdown</p>
-                    <div class="flex justify-between border-b border-slate-800 pb-1 mb-1">
-                        <span>Base Cost</span>
-                        <span>100</span>
+                <div class="invisible group-hover/score:visible absolute bottom-full right-0 mb-3 w-48 p-4 bg-slate-950 text-white rounded-[1.5rem] shadow-2xl z-[100] text-[10px] leading-relaxed animate-in fade-in zoom-in duration-100 border border-slate-800 pointer-events-none">
+                    <p class="font-black uppercase tracking-widest text-slate-500 mb-2 border-b border-slate-800 pb-1">Score Breakdown</p>
+                    <div class="space-y-1">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Base Move</span>
+                            <span class="font-mono">100</span>
+                        </div>
+                        <div class="flex justify-between text-emerald-400">
+                            <span class="italic">Rarity Bonus</span>
+                            <span class="font-mono">-{100 - score}</span>
+                        </div>
+                        <div class="flex justify-between font-black mt-2 pt-2 border-t border-slate-800 text-sm">
+                            <span>TOTAL</span>
+                            <span class="text-white font-mono">{score}</span>
+                        </div>
                     </div>
-                    <div class="flex justify-between text-emerald-400">
-                        <span>Rarity Discount</span>
-                        <span>-{100 - score}</span>
-                    </div>
-                    <div class="flex justify-between font-bold mt-1 pt-1 border-t border-slate-800">
-                        <span>Total</span>
-                        <span>{score}</span>
-                    </div>
-                    <div class="absolute top-full right-4 border-4 border-transparent border-t-slate-950"></div>
+                    <div class="absolute top-full right-4 border-8 border-transparent border-t-slate-950"></div>
                 </div>
             </div>
         {/if}

@@ -2,9 +2,9 @@
   import { game, type ValidationResult } from './lib/game.svelte';
   import { journeys } from './lib/journeys';
   import { dictionaryService } from './lib/dictionary.svelte';
-  import NavButton from './lib/components/NavButton.svelte';
   import Button from './lib/components/Button.svelte';
   import JourneyTile from './lib/components/JourneyTile.svelte';
+  import TreasureChest from './lib/components/TreasureChest.svelte';
   import './app.css';
 
   let guess = $state('');
@@ -24,6 +24,9 @@
   let settingsDialog: HTMLDialogElement;
   let confirmDialog: HTMLDialogElement;
   let pendingAction: (() => void) | null = null;
+  let confirmTitle = $state('Abandon Journey?');
+  let confirmBody = $state('Your current progress will be lost forever.');
+  let confirmActionLabel = $state('ABANDON');
 
   const spineBase = "w-12 flex flex-col items-center justify-center shrink-0 h-16 relative";
   const labelBase = "text-[16px] font-black leading-none group relative cursor-help";
@@ -57,8 +60,11 @@
       setTimeout(() => isShaking = false, 500);
   }
 
-  function confirmIfInProgress(action: () => void) {
+  function confirmAction(title: string, body: string, label: string, action: () => void) {
       if (game.history.length > 1 && !game.isGameOver) {
+          confirmTitle = title;
+          confirmBody = body;
+          confirmActionLabel = label;
           pendingAction = action;
           confirmDialog.showModal();
       } else {
@@ -194,9 +200,8 @@
     </div>
 {/if}
 
-<!-- Cursor-following Obscurity Tooltip -->
 {#if activeObscurity !== null}
-    <div class="fixed pointer-events-none z-[60] bg-slate-800/90 border-2 border-slate-700 p-2 px-3 rounded-xl shadow-2xl backdrop-blur-md animate-in fade-in zoom-in duration-100 flex flex-col items-center" style="left: {mouseX + 15}px; top: {mouseY + 15}px">
+    <div class="fixed pointer-events-none z-[110] bg-slate-800/90 border-2 border-slate-700 p-2 px-3 rounded-xl shadow-2xl backdrop-blur-md animate-in fade-in zoom-in duration-100 flex flex-col items-center" style="left: {mouseX + 15}px; top: {mouseY + 15}px">
         <span class="text-[8px] font-black uppercase tracking-widest text-slate-500 mb-0.5">Rarity Rank</span>
         <div class="flex items-center gap-1.5">
             <span class="text-base font-black {getObscurityColor(activeObscurity)} leading-none">{activeObscurity}</span>
@@ -207,7 +212,7 @@
 
 <!-- Global Simple Tooltip -->
 {#if globalTooltip}
-    <div class="fixed pointer-events-none z-[60] bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg shadow-2xl text-[10px] font-bold text-white whitespace-nowrap animate-in fade-in zoom-in duration-75" style="left: {mouseX + 15}px; top: {mouseY + 15}px">
+    <div class="fixed pointer-events-none z-[110] bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-lg shadow-2xl text-[10px] font-bold text-white whitespace-nowrap animate-in fade-in zoom-in duration-75" style="left: {mouseX + 15}px; top: {mouseY + 15}px">
         {globalTooltip}
     </div>
 {/if}
@@ -231,7 +236,7 @@
         <Button 
             variant="secondary" 
             size="icon" 
-            onclick={() => confirmIfInProgress(() => game.solve())} 
+            onclick={() => confirmAction('Magic Path?', 'The wand will automatically find the shortest path from your current word.', 'ACTIVATE MAGIC', () => game.solve())} 
             loading={game.isSolving}
             tooltip="Magic Path"
             disabled={game.isGenerating}
@@ -247,7 +252,7 @@
         >
             <div class="relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl h-full z-20 transition-all overflow-hidden" class:rounded-b-none={showRandomConfig}>
                 <button 
-                    onclick={() => confirmIfInProgress(startRandom)}
+                    onclick={() => confirmAction('Abandon Journey?', 'Your current progress will be lost if you start a new random journey.', 'START NEW', startRandom)}
                     disabled={game.isGenerating || game.isSolving}
                     class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 h-full px-4 transition-all active:scale-95 leading-none border-r border-blue-700 shrink-0 text-white disabled:opacity-50"
                 >
@@ -305,11 +310,11 @@
   <!-- Confirm Dialog -->
   <dialog bind:this={confirmDialog} onclick={(e) => handleBackdropClick(e, confirmDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-sm outline-none">
     <div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl p-8 text-center animate-in zoom-in duration-200">
-        <h2 class="text-xl font-black uppercase italic tracking-tighter text-white mb-2">Abandon Journey?</h2>
-        <p class="text-slate-400 text-sm mb-8">Your current progress will be lost forever.</p>
+        <h2 class="text-xl font-black uppercase italic tracking-tighter text-white mb-2">{confirmTitle}</h2>
+        <p class="text-slate-400 text-sm mb-8">{confirmBody}</p>
         <div class="flex flex-col gap-2">
-            <Button variant="danger" onclick={() => { pendingAction?.(); confirmDialog.close(); }}>ABANDON</Button>
-            <Button variant="secondary" onclick={() => confirmDialog.close()}>STAY ON PATH</Button>
+            <Button variant="danger" onclick={() => { pendingAction?.(); confirmDialog.close(); }}>{confirmActionLabel}</Button>
+            <Button variant="secondary" onclick={() => confirmDialog.close()}>STAY ON JOURNEY</Button>
         </div>
     </div>
   </dialog>
@@ -325,7 +330,7 @@
             {#each sortedJourneys as s}
               {@const result = game.completedJourneys[s.id]}
               <button 
-                onclick={() => confirmIfInProgress(() => selectJourney(s))} 
+                onclick={() => confirmAction('Abandon Journey?', 'Starting a new journey will clear your current progress.', 'START NEW', () => selectJourney(s))} 
                 class="w-full text-left p-5 bg-slate-900/30 hover:bg-slate-700 border-2 border-slate-700/50 rounded-2xl transition-all group relative"
               >
                 <div class="flex justify-between items-center mb-1">
@@ -396,13 +401,15 @@
     </div>
 
     {#if game.isGameOver}
-      <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-[2.5rem] backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl">
-        <div class="text-6xl mb-4">💰</div>
+      <div class="ml-15 mt-4 p-8 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-[3rem] backdrop-blur-xl animate-in zoom-in duration-500 text-center shadow-2xl">
+        <div class="w-24 h-24 mx-auto mb-4">
+            <TreasureChest open />
+        </div>
         <div class="text-emerald-400 text-5xl mb-2 italic font-black uppercase tracking-tighter">Success</div>
         <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8 italic">Journey completed in {game.history.length - 1} steps</p>
         <div class="flex flex-col gap-4 items-center">
             <div class="flex gap-3 justify-center">
-              <Button variant="secondary" onclick={() => confirmIfInProgress(() => game.reset())}>RETRY</Button>
+              <Button variant="secondary" onclick={() => confirmAction('Abandon Journey?', 'Retrying will clear your current progress.', 'RETRY', () => game.reset())}>RETRY</Button>
               <Button variant="secondary" onclick={() => levelsDialog.showModal()}>NEW JOURNEY</Button>
             </div>
             <Button size="lg" variant="primary" onclick={shareResult} class="w-full max-w-[240px]">SHARE RESULT</Button>
@@ -441,12 +448,10 @@
 
       <div class="flex gap-3 items-center mt-2 text-left group">
         <div class={spineBase}>
-          <div class={labelBase} onmouseenter={() => globalTooltip = 'Final destination'} onmouseleave={() => globalTooltip = null}>
-              <svg class="w-6 h-6 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M22 7H2v10h20V7zM2 7l10 5 10-5M12 12V22"/>
-                  <rect x="2" y="7" width="20" height="10" rx="2"/>
-                  <circle cx="12" cy="12" r="2" fill="currentColor"/>
-              </svg>
+          <div class={labelBase} onmouseenter={() => globalTooltip = 'Final destination. You need to get here!'} onmouseleave={() => globalTooltip = null}>
+              <div class="w-6 h-6">
+                  <TreasureChest />
+              </div>
           </div>
         </div>
         <JourneyTile 
@@ -459,8 +464,8 @@
     {/if}
   </div>
 
-  <section class="mt-12 max-w-lg w-full px-4 text-center text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
-    <div class="grid grid-cols-4 gap-4 mb-8">
+  <section class="mt-12 max-w-lg w-full px-4">
+    <div class="grid grid-cols-4 gap-4 mb-8 text-center text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">
       {#each legendItems as item}
         <div class="group relative flex flex-col items-center cursor-help">
           <div class="w-full h-1.5 {item.color} rounded-full mb-2 opacity-40 group-hover:opacity-100 transition-all group-hover:scale-y-150"></div>
