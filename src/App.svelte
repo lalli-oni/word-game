@@ -247,6 +247,14 @@
       showBottomIndicator = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight > 10;
   }
 
+  function getDifficultyClasses(diff: string) {
+      const base = "text-[9px] font-black uppercase px-2 py-0.5 rounded-md border";
+      if (diff === 'easy') return `${base} text-emerald-400 border-emerald-500/30 bg-emerald-500/10`;
+      if (diff === 'medium') return `${base} text-yellow-400 border-yellow-500/30 bg-yellow-500/10`;
+      if (diff === 'hard') return `${base} text-red-400 border-red-500/30 bg-red-500/10`;
+      return base;
+  }
+
   $effect(() => {
       handleScroll();
       if (game.startWord) {
@@ -478,17 +486,7 @@
                         <span class="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">{s.name}</span>
                         {#if result}<span class="text-[10px]" title="Completed!">✅</span>{/if}
                     </div>
-                    <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-md border"
-                          class:text-emerald-400={s.difficulty === 'easy'}
-                          class:border-emerald-500\/30={s.difficulty === 'easy'}
-                          class:bg-emerald-500\/10={s.difficulty === 'easy'}
-                          class:text-yellow-400={s.difficulty === 'medium'}
-                          class:border-yellow-500\/30={s.difficulty === 'medium'}
-                          class:bg-yellow-500\/10={s.difficulty === 'medium'}
-                          class:text-red-400={s.difficulty === 'hard'}
-                          class:border-red-500\/30={s.difficulty === 'hard'}
-                          class:bg-red-500\/10={s.difficulty === 'hard'}
-                    >{s.difficulty}</span>
+                    <span class={getDifficultyClasses(s.difficulty)}>{s.difficulty}</span>
                 </div>
                 <div class="flex justify-between items-end">
                     <p class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{s.startWord} ➔ {s.finishWord}</p>
