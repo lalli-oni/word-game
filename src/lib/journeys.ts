@@ -5,6 +5,7 @@ export interface Journey {
   finishWord: string;
   difficulty: 'easy' | 'medium' | 'hard';
   description?: string;
+  tags?: string[];
 }
 
 export const journeys: Journey[] = [
@@ -111,5 +112,33 @@ export const journeys: Journey[] = [
     finishWord: 'BRAIN',
     difficulty: 'hard',
     description: 'Connect the two engines of the human experience.'
+  },
+  // Profane scenarios
+  {
+    id: 'dirty-1',
+    name: 'Urban Grime',
+    startWord: 'CLEAN',
+    finishWord: 'SHIT',
+    difficulty: 'medium',
+    tags: ['profanity'],
+    description: 'A messy descent into the urban dictionary.'
+  },
+  {
+    id: 'dirty-2',
+    name: 'The Roast',
+    startWord: 'NICE',
+    finishWord: 'DICK',
+    difficulty: 'hard',
+    tags: ['profanity'],
+    description: 'From compliments to... something else.'
+  },
+  {
+    id: 'dirty-3',
+    name: 'Expletive Deleted',
+    startWord: 'HELL',
+    finishWord: 'FUCK',
+    difficulty: 'hard',
+    tags: ['profanity'],
+    description: 'The most direct path between frustrations.'
   }
 ];
