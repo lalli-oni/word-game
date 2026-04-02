@@ -3,6 +3,7 @@ const path = require('path');
 const WordNet = require('node-wordnet');
 const naughty = require('naughty-words');
 const subtlex = require('subtlex-word-frequencies');
+const crypto = require('crypto');
 
 const wordnet = new WordNet();
 const dictionary = {};
@@ -76,10 +77,9 @@ async function build() {
                         }
                     });
 
-                    // Antonym extraction
                     if (res.ptrs) {
                         for (const ptr of res.ptrs) {
-                            if (ptr.pointerSymbol === '!') { // '!' is the symbol for Antonym in WordNet
+                            if (ptr.pointerSymbol === '!') {
                                 try {
                                     const antRes = await wordnet.getAsync(ptr.synsetOffset, ptr.pos);
                                     antRes.synonyms.forEach(a => {
@@ -126,9 +126,17 @@ async function build() {
         }
     }
 
+    const dictionaryContent = JSON.stringify(dictionary);
+    const hash = crypto.createHash('md5').update(dictionaryContent).digest('hex');
+
     const outputPath = path.join(__dirname, '../public/dictionary.json');
-    fs.writeFileSync(outputPath, JSON.stringify(dictionary));
+    const hashPath = path.join(__dirname, '../public/dictionary.hash');
+
+    fs.writeFileSync(outputPath, dictionaryContent);
+    fs.writeFileSync(hashPath, hash);
+
     console.log(`\nSuccess! Dictionary built with ${Object.keys(dictionary).length} words.`);
+    console.log(`Content Hash: ${hash}`);
 }
 
 build();

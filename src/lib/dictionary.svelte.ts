@@ -12,6 +12,7 @@ class DictionaryService {
   private dbName = 'WordConnectionDB';
   private dbVersion = 3;
   private db: IDBPDatabase | null = null;
+  private HASH_KEY = 'dictionary_content_hash';
   
   status = $state<'idle' | 'hydrating' | 'ready' | 'error'>('idle');
   progress = $state(0);
@@ -38,19 +39,22 @@ class DictionaryService {
         });
 
         const count = await this.db.count('dictionary');
-        const sample = count > 0 ? await this.db.get('dictionary', 'cold') : null;
         
-        // Rigorous Health Check: 
-        // 1. Must have data
-        // 2. Sample must have 'rank' (v3)
-        // 3. Sample must have 'synonyms' or 'antonyms' array (integrity)
-        const isHealthy = sample && 
-                         sample.rank !== undefined && 
-                         Array.isArray(sample.synonyms);
+        // Fetch remote hash
+        let remoteHash = '';
+        try {
+            const hResp = await fetch('dictionary.hash');
+            if (hResp.ok) remoteHash = (await hResp.text()).trim();
+        } catch (e) {
+            console.warn('[IDB] Could not fetch dictionary hash', e);
+        }
 
-        if (count === 0 || !isHealthy) {
-          console.warn('[IDB] Database unhealthy or missing semantic data. Re-hydrating...');
-          await this.hydrate();
+        const localHash = localStorage.getItem(this.HASH_KEY);
+        const needsHydration = count === 0 || (remoteHash && remoteHash !== localHash);
+
+        if (needsHydration) {
+          console.log(`[IDB] Version mismatch or empty DB. Local: ${localHash}, Remote: ${remoteHash}. Hydrating...`);
+          await this.hydrate(remoteHash);
         } else {
           this.status = 'ready';
         }
@@ -62,7 +66,7 @@ class DictionaryService {
     }
   }
 
-  private async hydrate() {
+  private async hydrate(newHash: string) {
     this.status = 'hydrating';
     this.progress = 0;
     this.errorMessage = null;
@@ -78,6 +82,9 @@ class DictionaryService {
       const tx = this.db!.transaction('dictionary', 'readwrite');
       const store = tx.objectStore('dictionary');
 
+      // Clear existing data before re-hydrating
+      await store.clear();
+
       let current = 0;
       for (const word of words) {
         await store.put({
@@ -92,6 +99,11 @@ class DictionaryService {
       }
 
       await tx.done;
+      
+      if (newHash) {
+          localStorage.setItem(this.HASH_KEY, newHash);
+      }
+      
       this.status = 'ready';
     } catch (error: any) {
       this.status = 'error';
