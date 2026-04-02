@@ -17,6 +17,15 @@
   };
 
   let { word, type, score, isStart, isGoal, obscurity, validation, flash = false, onmouseenter, onmouseleave, onclick }: Props = $props();
+
+  const typeStyles = {
+      letter: 'text-blue-400 border-blue-500/30 bg-blue-500/10',
+      synonym: 'text-purple-400 border-purple-500/30 bg-purple-500/10',
+      antonym: 'text-orange-400 border-orange-500/30 bg-orange-500/10',
+      anagram: 'text-pink-400 border-pink-500/30 bg-pink-500/10',
+      initial: 'text-slate-400 border-slate-700 bg-slate-800/50',
+      unknown: 'text-slate-400 border-slate-700 bg-slate-800/50'
+  };
 </script>
 
 <div class="flex items-center gap-3 w-full group/row">
@@ -47,7 +56,7 @@
 
         <div class="flex items-center gap-2">
             {#if type && type !== 'initial'}
-                <span class="text-[10px] font-black uppercase tracking-tighter text-slate-100 bg-slate-900/50 px-2 py-0.5 rounded border border-slate-700/50">
+                <span class="text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded border {typeStyles[type as keyof typeof typeStyles] || typeStyles.unknown}">
                     {type === 'letter' ? 'morph' : type}
                 </span>
             {/if}

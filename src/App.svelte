@@ -388,50 +388,59 @@
     </div>
   </section>
 
-  <div class="flex-1 w-full max-w-lg px-4 flex flex-col gap-3 min-h-0 relative">
-    {#if showTopIndicator}<div class="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-slate-900 to-transparent z-10 pointer-events-none"></div>{/if}
-    {#if showBottomIndicator}<div class="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-slate-900 to-transparent z-10 pointer-events-none"></div>{/if}
-
-    <div bind:this={scrollContainer} onscroll={handleScroll} class="flex-1 overflow-y-auto custom-scrollbar overscroll-contain flex flex-col gap-3 pr-2 pb-8 scroll-smooth">
-        <div class="flex gap-3 items-center shrink-0">
+  <div class="flex-1 w-full max-w-lg px-4 flex flex-col min-h-0 relative">
+    <!-- Fixed Start Word -->
+    <div class="flex-none pb-3">
+        <div class="flex gap-3 items-center">
           <div class={spineBase}>
             <div class={labelBase} onmouseenter={() => activeObscurity = 0} onmouseleave={() => activeObscurity = null}><span>🟢</span></div>
           </div>
           <JourneyTile word={game.startWord} isStart score={0} flash={flashWords.includes(game.startWord)} />
         </div>
+    </div>
 
-        {#each game.history.slice(1) as move, i}
-            {#if i < game.history.length - 2 || !game.isGameOver}
-                <div class="flex gap-3 items-center animate-in fade-in slide-in-from-left-4 duration-300 shrink-0">
-                  <div class={spineBase}><div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg">{i + 1}</div></div>
-                  <JourneyTile word={move.word} type={move.type} score={move.moveScore} obscurity={move.obscurity} flash={flashWords.includes(move.word)} />
+    <!-- Scrollable History & Input -->
+    <div class="flex-1 flex flex-col min-h-0 relative">
+        {#if showTopIndicator}<div class="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-slate-900 to-transparent z-10 pointer-events-none"></div>{/if}
+        {#if showBottomIndicator}<div class="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-slate-900 to-transparent z-10 pointer-events-none"></div>{/if}
+
+        <div bind:this={scrollContainer} onscroll={handleScroll} class="flex-1 overflow-y-auto custom-scrollbar overscroll-contain flex flex-col gap-3 pr-2 pb-8 scroll-smooth">
+            {#each game.history.slice(1) as move, i}
+                {#if i < game.history.length - 2 || !game.isGameOver}
+                    <div class="flex gap-3 items-center animate-in fade-in slide-in-from-left-4 duration-300 shrink-0">
+                      <div class={spineBase}><div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg">{i + 1}</div></div>
+                      <JourneyTile word={move.word} type={move.type} score={move.moveScore} obscurity={move.obscurity} flash={flashWords.includes(move.word)} />
+                    </div>
+                {/if}
+            {/each}
+
+            {#if !game.isGameOver}
+                <div class="flex flex-col gap-2 shrink-0 py-2">
+                    <div class="flex gap-3 items-center {isShaking ? 'animate-shake' : ''}">
+                      <div class={spineBase}><div class="text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 border-dashed shrink-0 {validation.isValid ? (validation.type === 'letter' ? 'text-blue-500 border-blue-500' : validation.type === 'synonym' ? 'text-purple-500 border-purple-500' : validation.type === 'antonym' ? 'text-orange-500 border-orange-500' : validation.type === 'anagram' ? 'text-pink-500 border-pink-500' : '') : (validation.errors.length > 0 ? 'text-red-500 border-red-500 shadow-lg' : 'text-slate-600')}">{game.history.length}</div></div>
+                      <WordInput 
+                        bind:value={guess}
+                        {validation}
+                        hasErrors={activeErrors.length > 0}
+                        onsubmit={handleSubmit}
+                        oninput={handleInput}
+                        characterClasses={getInputCharacterClasses}
+                      />
+                      <PendingScore />
+                    </div>
+                    {#if activeErrors.length > 0}
+                      <div class="ml-16 animate-in slide-in-from-top-2 fade-in duration-300 flex flex-col gap-1 text-left">
+                        {#each activeErrors as err}<p class="text-[10px] font-bold text-red-400 uppercase tracking-wider bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 inline-block self-start">{err}</p>{/each}
+                      </div>
+                    {/if}
                 </div>
             {/if}
-        {/each}
+        </div>
+    </div>
 
-        {#if !game.isGameOver}
-            <div class="flex flex-col gap-2 shrink-0 py-2">
-                <div class="flex gap-3 items-center {isShaking ? 'animate-shake' : ''}">
-                  <div class={spineBase}><div class="text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 border-dashed shrink-0 {validation.isValid ? (validation.type === 'letter' ? 'text-blue-500 border-blue-500' : validation.type === 'synonym' ? 'text-purple-500 border-purple-500' : validation.type === 'antonym' ? 'text-orange-500 border-orange-500' : validation.type === 'anagram' ? 'text-pink-500 border-pink-500' : '') : (validation.errors.length > 0 ? 'text-red-500 border-red-500 shadow-lg' : 'text-slate-600')}">{game.history.length}</div></div>
-                  <WordInput 
-                    bind:value={guess}
-                    {validation}
-                    hasErrors={activeErrors.length > 0}
-                    onsubmit={handleSubmit}
-                    oninput={handleInput}
-                    characterClasses={getInputCharacterClasses}
-                  />
-                  <PendingScore />
-                </div>
-                {#if activeErrors.length > 0}
-                  <div class="ml-16 animate-in slide-in-from-top-2 fade-in duration-300 flex flex-col gap-1 text-left">
-                    {#each activeErrors as err}<p class="text-[10px] font-bold text-red-400 uppercase tracking-wider bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 inline-block self-start">{err}</p>{/each}
-                  </div>
-                {/if}
-            </div>
-        {/if}
-
-        <div class="flex gap-3 items-center text-left group shrink-0 pt-2">
+    <!-- Fixed Goal Word -->
+    <div class="flex-none pt-3 pb-8">
+        <div class="flex gap-3 items-center text-left group">
             <div class={spineBase}><div class={labelBase} onmouseenter={showFinishObscurity} onmouseleave={() => activeObscurity = null}><div class="w-6 h-6"><TreasureChest open={game.isGameOver} /></div></div></div>
             <JourneyTile word={game.finishWord} isGoal type={game.isGameOver ? game.history[game.history.length - 1].type : undefined} score={game.isGameOver ? game.history[game.history.length - 1].moveScore : undefined} obscurity={game.isGameOver ? game.history[game.history.length - 1].obscurity : undefined} onclick={game.isGameOver ? () => successDialog.showModal() : undefined} flash={flashWords.includes(game.finishWord)} />
         </div>
@@ -459,13 +468,32 @@
 
 <dialog bind:this={levelsDialog} onclick={(e) => handleBackdropClick(e, levelsDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-lg outline-none">
     <div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-        <div class="p-6 border-b-2 border-slate-700 flex justify-between items-center bg-slate-800/50"><h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Select Journey</h2><button onclick={() => levelsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button></div>
+        <div class="p-6 border-b-2 border-slate-700 flex justify-between items-center bg-slate-800/50"><h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Choose journey</h2><button onclick={() => levelsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button></div>
         <div class="overflow-y-auto custom-scrollbar p-4 flex flex-col gap-2 text-left">
             {#each sortedJourneys as s}
               {@const result = game.completedJourneys[s.id]}
               <button onclick={() => confirmAction('Abandon Journey?', 'Starting a new journey will clear your current progress.', 'START NEW', 'STAY ON JOURNEY', () => selectJourney(s))} class="w-full text-left p-5 bg-slate-900/30 hover:bg-slate-700 border-2 border-slate-700/50 rounded-2xl transition-all group relative">
-                <div class="flex justify-between items-center mb-1"><div class="flex items-center gap-2"><span class="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">{s.name}</span>{#if result}<span class="text-[10px]" title="Completed!">✅</span>{/if}</div><span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-900 text-slate-500 border border-slate-700">{s.difficulty}</span></div>
-                <div class="flex justify-between items-end"><p class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{s.startWord} ➔ {s.finishWord}</p>{#if result}<span class="text-[9px] font-black text-emerald-500 uppercase">Best: {result.score} 🏆</span>{/if}</div>
+                <div class="flex justify-between items-center mb-1">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">{s.name}</span>
+                        {#if result}<span class="text-[10px]" title="Completed!">✅</span>{/if}
+                    </div>
+                    <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-md border"
+                          class:text-emerald-400={s.difficulty === 'easy'}
+                          class:border-emerald-500\/30={s.difficulty === 'easy'}
+                          class:bg-emerald-500\/10={s.difficulty === 'easy'}
+                          class:text-yellow-400={s.difficulty === 'medium'}
+                          class:border-yellow-500\/30={s.difficulty === 'medium'}
+                          class:bg-yellow-500\/10={s.difficulty === 'medium'}
+                          class:text-red-400={s.difficulty === 'hard'}
+                          class:border-red-500\/30={s.difficulty === 'hard'}
+                          class:bg-red-500\/10={s.difficulty === 'hard'}
+                    >{s.difficulty}</span>
+                </div>
+                <div class="flex justify-between items-end">
+                    <p class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{s.startWord} ➔ {s.finishWord}</p>
+                    {#if result}<span class="text-[9px] font-black text-emerald-500 uppercase">Best: {result.score} 🏆</span>{/if}
+                </div>
               </button>
             {/each}
         </div>

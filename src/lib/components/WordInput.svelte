@@ -28,7 +28,7 @@
   });
 
   const buttonClasses = $derived.by(() => {
-      const base = "text-white w-20 h-full transition-all active:scale-90 flex items-center justify-center shrink-0";
+      const base = "text-white w-20 h-full transition-all active:scale-90 flex items-center justify-center shrink-0 flex-none";
       
       if (validation.isValid) {
           if (validation.type === 'letter') return `${base} bg-blue-600`;
@@ -53,7 +53,7 @@
         bind:value 
         {oninput}
         placeholder="NEXT WORD..." 
-        class="flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-400/40 text-transparent caret-white selection:bg-blue-500/30" 
+        class="min-w-0 flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-400/40 text-transparent caret-white selection:bg-blue-500/30" 
         maxlength="20" 
     />
     
