@@ -169,13 +169,17 @@ export class GameEngine {
   }
 
   async #refreshSemanticMoves(word: string) {
+      console.log(`[Game] Refreshing semantic moves for: ${word}`);
       const entry = await dictionaryService.getEntry(word);
       if (entry) {
           this.#validSemanticMoves = {
               synonyms: entry.synonyms,
               antonyms: entry.antonyms
           };
+          console.log(`[Game] Loaded ${entry.synonyms.length} synonyms and ${entry.antonyms.length} antonyms.`);
+          console.log(`[Game] Antonyms:`, entry.antonyms);
       } else {
+          console.warn(`[Game] No dictionary entry found for: ${word}`);
           this.#validSemanticMoves = { synonyms: [], antonyms: [] };
       }
   }
@@ -215,7 +219,6 @@ export class GameEngine {
               finish = await dictionaryService.getRandomWord(this.#randomWordLength);
               if (start === finish) continue;
               
-              // Use a slightly larger maxSteps for generation to ensure solvability
               const path = await dictionaryService.findShortestPath(start, finish, 6);
               if (path && path.length >= 3) {
                   let difficulty: 'easy' | 'medium' | 'hard' = 'medium';
@@ -229,7 +232,6 @@ export class GameEngine {
                       finishWord: finish,
                       difficulty
                   };
-                  console.log(`[Generator] Pregenerated: ${start} -> ${finish} (${path.length} steps, ${difficulty})`);
                   break;
               }
               attempts++;
@@ -257,7 +259,7 @@ export class GameEngine {
           while (!this.#pregeneratedJourney) {
               await this.pregenerateRandomJourney();
               if (this.#pregeneratedJourney) break;
-              await new Promise(r => setTimeout(r, 100)); // Prevent tight loop
+              await new Promise(r => setTimeout(r, 100));
           }
           this.loadJourney(this.#pregeneratedJourney!);
           this.#pregeneratedJourney = null;
@@ -347,10 +349,15 @@ export class GameEngine {
           return { isValid: true, type: 'anagram', errors: [], obscurity };
       }
 
-      if (isVisible && this.#validSemanticMoves.synonyms.includes(word.toLowerCase())) {
+      const wordLower = word.toLowerCase();
+      console.log(`[Game] Validating semantic for: ${wordLower}`);
+      console.log(`[Game] Available Synonyms:`, this.#validSemanticMoves.synonyms);
+      console.log(`[Game] Available Antonyms:`, this.#validSemanticMoves.antonyms);
+
+      if (isVisible && this.#validSemanticMoves.synonyms.includes(wordLower)) {
           return { isValid: true, type: 'synonym', errors: [], obscurity };
       }
-      if (isVisible && this.#validSemanticMoves.antonyms.includes(word.toLowerCase())) {
+      if (isVisible && this.#validSemanticMoves.antonyms.includes(wordLower)) {
           return { isValid: true, type: 'antonym', errors: [], obscurity };
       }
 
@@ -382,8 +389,6 @@ export class GameEngine {
       const moveScore = this.calculateMoveScore(validation.obscurity || 0);
       
       this.currentWord = word;
-      
-      // Check if this move completes the journey
       const isGoal = (word === this.finishWord);
 
       this.history.push({ 
@@ -406,7 +411,7 @@ export class GameEngine {
           });
       }
 
-      this.#refreshSemanticMoves(word);
+      await this.#refreshSemanticMoves(word);
       this.saveGameState();
   }
 

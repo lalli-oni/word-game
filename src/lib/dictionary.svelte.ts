@@ -22,8 +22,10 @@ class DictionaryService {
     if (this.db) return;
 
     try {
+        console.log('[IDB] Initializing dictionary service...');
         this.db = await openDB(this.dbName, this.dbVersion, {
           upgrade(db, oldVersion, newVersion, transaction) {
+            console.log(`[IDB] Upgrading database from ${oldVersion} to ${newVersion}`);
             let store;
             if (oldVersion < 1) {
               store = db.createObjectStore('dictionary', { keyPath: 'word' });
@@ -39,23 +41,27 @@ class DictionaryService {
         });
 
         const count = await this.db.count('dictionary');
+        console.log(`[IDB] Current word count: ${count}`);
         
-        // Fetch remote hash
         let remoteHash = '';
         try {
             const hResp = await fetch('dictionary.hash');
             if (hResp.ok) remoteHash = (await hResp.text()).trim();
+            console.log(`[IDB] Remote hash: ${remoteHash}`);
         } catch (e) {
             console.warn('[IDB] Could not fetch dictionary hash', e);
         }
 
         const localHash = localStorage.getItem(this.HASH_KEY);
+        console.log(`[IDB] Local hash: ${localHash}`);
+        
         const needsHydration = count === 0 || (remoteHash && remoteHash !== localHash);
 
         if (needsHydration) {
-          console.log(`[IDB] Version mismatch or empty DB. Local: ${localHash}, Remote: ${remoteHash}. Hydrating...`);
+          console.log(`[IDB] RE-HYDRATION TRIGGERED. Reason: ${count === 0 ? 'Empty DB' : 'Hash mismatch'}`);
           await this.hydrate(remoteHash);
         } else {
+          console.log('[IDB] Database is up to date.');
           this.status = 'ready';
         }
     } catch (e: any) {
@@ -72,17 +78,18 @@ class DictionaryService {
     this.errorMessage = null;
 
     try {
+      console.log('[IDB] Fetching dictionary.json...');
       const response = await fetch('dictionary.json');
       if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
       
       const data = await response.json();
       const words = Object.keys(data);
       const total = words.length;
+      console.log(`[IDB] Starting hydration of ${total} words...`);
       
       const tx = this.db!.transaction('dictionary', 'readwrite');
       const store = tx.objectStore('dictionary');
 
-      // Clear existing data before re-hydrating
       await store.clear();
 
       let current = 0;
@@ -93,12 +100,14 @@ class DictionaryService {
           ...data[word]
         });
         current++;
-        if (current % 2000 === 0) {
+        if (current % 10000 === 0) {
             this.progress = Math.round((current / total) * 100);
+            console.log(`[IDB] Hydration progress: ${this.progress}%`);
         }
       }
 
       await tx.done;
+      console.log('[IDB] Hydration complete.');
       
       if (newHash) {
           localStorage.setItem(this.HASH_KEY, newHash);
@@ -108,13 +117,15 @@ class DictionaryService {
     } catch (error: any) {
       this.status = 'error';
       this.errorMessage = error.message;
+      console.error('[IDB] Hydration error:', error);
       throw error;
     }
   }
 
   async getEntry(word: string): Promise<DictionaryEntry | undefined> {
     if (!this.db) await this.init();
-    return await this.db!.get('dictionary', word.toLowerCase());
+    const entry = await this.db!.get('dictionary', word.toLowerCase());
+    return entry;
   }
 
   async getRandomWord(length?: number): Promise<string> {
