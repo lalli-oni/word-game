@@ -17,15 +17,11 @@
   let showRandomConfig = $state(false);
   let showSharedToast = $state(false);
 
-  // Flash state for duplicate words
   let flashWords = $state<string[]>([]);
-
-  // Tooltip tracking
   let mouseX = $state(0);
   let mouseY = $state(0);
   let activeObscurity: number | null = $state(null);
 
-  // Scroll indicators state
   let scrollContainer: HTMLDivElement;
   let showTopIndicator = $state(false);
   let showBottomIndicator = $state(false);
@@ -39,9 +35,6 @@
   let confirmBody = $state('Your current progress will be lost forever.');
   let confirmActionLabel = $state('ABANDON');
   let confirmCancelLabel = $state('STAY ON JOURNEY');
-
-  const spineBase = "w-12 flex flex-col items-center justify-center shrink-0 h-16 relative";
-  const labelBase = "text-[16px] font-black leading-none group relative cursor-help";
 
   async function handleInput() {
     activeErrors = [];
@@ -128,8 +121,7 @@
   function shareResult() {
       const typeEmojis = { letter: '🟦', synonym: '🟪', antonym: '🟧', anagram: '🟫', initial: '⬜', unknown: '❓' };
       const pathString = game.history.map(m => typeEmojis[m.type as keyof typeof typeEmojis]).join('');
-      const shareUrl = `${window.location.origin}${window.location.pathname}?s=${game.startWord.toLowerCase()}&e=${game.finishWord.toLowerCase()}`;
-      const text = `Word Journey: ${game.startWord} ➔ ${game.finishWord}\nScore: ${game.score}\nSteps: ${game.history.length - 1}\nPath: ${pathString}\n\n${shareUrl}`;
+      const text = `Word Journey: ${game.startWord} ➔ ${game.finishWord}\nScore: ${game.score}\nSteps: ${game.history.length - 1}\nPath: ${pathString}\n\n${window.location.origin}${window.location.pathname}?s=${game.startWord.toLowerCase()}&e=${game.finishWord.toLowerCase()}`;
       navigator.clipboard.writeText(text);
       showSharedToast = true; setTimeout(() => showSharedToast = false, 3000);
   }
@@ -218,9 +210,11 @@
   </section>
 
   <div class="flex-1 w-full max-w-lg px-4 flex flex-col min-h-0 relative">
-    <div class="flex-none pb-3">
-        <WordRow type="origin" score={0}>
+    <div class="flex-none pb-2">
+        <WordRow type="origin">
+            {#snippet spine()}<div class="w-2.5 h-2.5 rounded-full bg-slate-100 shadow-[0_0_10px_rgba(255,255,255,0.4)]"></div>{/snippet}
             {#snippet card()}<JourneyTile word={game.startWord} flash={flashWords.includes(game.startWord)} />{/snippet}
+            {#snippet side()}<span class="text-sm font-black text-slate-400">+0</span>{/snippet}
         </WordRow>
     </div>
 
@@ -228,10 +222,11 @@
         {#if showTopIndicator}<div class="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-slate-900 to-transparent z-10 pointer-events-none"></div>{/if}
         {#if showBottomIndicator}<div class="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-slate-900 to-transparent z-10 pointer-events-none"></div>{/if}
 
-        <div bind:this={scrollContainer} onscroll={handleScroll} class="flex-1 overflow-y-auto custom-scrollbar overscroll-contain flex flex-col gap-3 pr-2 pb-8 scroll-smooth">
+        <div bind:this={scrollContainer} onscroll={handleScroll} class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pb-4 scroll-smooth">
             {#each game.history.slice(1) as move, i}
                 {#if i < game.history.length - 2 || !game.isGameOver}
-                    <WordRow type="waypoint" stepNumber={i + 1} score={move.moveScore}>
+                    <WordRow type="waypoint">
+                        {#snippet spine()}<div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg">{i + 1}</div>{/snippet}
                         {#snippet card()}<JourneyTile word={move.word} type={move.type} flash={flashWords.includes(move.word)} />{/snippet}
                         {#snippet side()}<Tooltip title="Score Breakdown">{#snippet children()}<span class="text-sm font-black text-slate-100 group-hover/row:text-white transition-colors cursor-help">+{move.moveScore}</span>{/snippet}{#snippet content()}<div class="space-y-3 min-w-[160px]"><div class="flex justify-between items-center text-[12px]"><span class="text-slate-400 font-bold uppercase tracking-widest">Base Move</span><span class="font-mono font-black text-white">100</span></div><div class="flex justify-between items-center text-[12px] text-emerald-400"><span class="italic font-bold">Rarity Bonus</span><span class="font-mono font-black">-{100 - (move.moveScore || 0)}</span></div><div class="flex justify-between items-center font-black mt-4 pt-4 border-t-2 border-slate-800 text-lg"><span class="uppercase tracking-tighter">TOTAL</span><span class="text-white font-mono">{move.moveScore}</span></div></div>{/snippet}</Tooltip>{/snippet}
                     </WordRow>
@@ -239,13 +234,10 @@
             {/each}
 
             {#if !game.isGameOver}
-                <div class="flex flex-col gap-2 shrink-0 py-2">
-                    <WordRow type="input" stepNumber={game.history.length}>
-                        {#snippet card()}
-                            <div class={isShaking ? 'animate-shake' : ''}>
-                                <WordInput bind:value={guess} {validation} hasErrors={activeErrors.length > 0} onsubmit={handleSubmit} oninput={handleInput} characterClasses={getInputCharacterClasses} />
-                            </div>
-                        {/snippet}
+                <div class="flex flex-col gap-2 shrink-0 py-1">
+                    <WordRow type="input">
+                        {#snippet spine()}<div class="text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 border-dashed text-slate-600">{game.history.length}</div>{/snippet}
+                        {#snippet card()}<div class={isShaking ? 'animate-shake' : ''}><WordInput bind:value={guess} {validation} hasErrors={activeErrors.length > 0} onsubmit={handleSubmit} oninput={handleInput} characterClasses={getInputCharacterClasses} /></div>{/snippet}
                     </WordRow>
                     {#if activeErrors.length > 0}
                       <div class="ml-16 animate-in slide-in-from-top-2 fade-in duration-300 flex flex-col gap-1 text-left">{#each activeErrors as err}<p class="text-[10px] font-bold text-red-400 uppercase tracking-wider bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 inline-block self-start">{err}</p>{/each}</div>
@@ -255,8 +247,9 @@
         </div>
     </div>
 
-    <div class="flex-none pt-3 pb-8">
-        <WordRow type="destination" isGameOver={game.isGameOver} score={game.isGameOver ? game.history[game.history.length - 1].moveScore : undefined}>
+    <div class="flex-none pt-2 pb-8">
+        <WordRow type="destination">
+            {#snippet spine()}<div class="w-6 h-6"><TreasureChest open={game.isGameOver} /></div>{/snippet}
             {#snippet card()}<JourneyTile word={game.finishWord} isGoal type={game.isGameOver ? game.history[game.history.length - 1].type : undefined} onclick={game.isGameOver ? () => successDialog.showModal() : undefined} flash={flashWords.includes(game.finishWord)} />{/snippet}
             {#snippet side()}
                 {#if game.isGameOver}
@@ -275,7 +268,7 @@
 <dialog bind:this={confirmDialog} onclick={(e) => handleBackdropClick(e, confirmDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-sm outline-none"><div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl p-8 text-center animate-in zoom-in duration-200"><h2 class="text-xl font-black uppercase italic tracking-tighter text-white mb-2">{confirmTitle}</h2><p class="text-slate-400 text-sm mb-8">{confirmBody}</p><div class="flex flex-col gap-2"><Button variant="danger" onclick={() => { pendingAction?.(); confirmDialog.close(); }}>{confirmActionLabel}</Button><Button variant="secondary" onclick={() => confirmDialog.close()}>{confirmCancelLabel}</Button></div></div></dialog>
 <dialog bind:this={levelsDialog} onclick={(e) => handleBackdropClick(e, levelsDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-lg outline-none"><div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"><div class="p-6 border-b-2 border-slate-700 flex justify-between items-center bg-slate-800/50"><h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Choose journey</h2><button onclick={() => levelsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button></div><div class="overflow-y-auto custom-scrollbar p-4 flex flex-col gap-2 text-left">{#each sortedJourneys as s}{@const result = game.completedJourneys[s.id]}<button onclick={() => confirmAction('Abandon Journey?', 'Starting a new journey will clear your current progress.', 'START NEW', 'STAY ON JOURNEY', () => selectJourney(s))} class="w-full text-left p-5 bg-slate-900/30 hover:bg-slate-700 border-2 border-slate-700/50 rounded-2xl transition-all group relative"><div class="flex justify-between items-center mb-1"><div class="flex items-center gap-2"><span class="font-bold text-slate-200 group-hover:text-blue-400 transition-colors">{s.name}</span>{#if result}<span class="text-[10px]" title="Completed!">✅</span>{/if}</div><span class={getDifficultyClasses(s.difficulty)}>{s.difficulty}</span></div><div class="flex justify-between items-end"><p class="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{s.startWord} ➔ {s.finishWord}</p>{#if result}<span class="text-[9px] font-black text-emerald-500 uppercase">Best: {result.score} 🏆</span>{/if}</div></button>{/each}</div></div></dialog>
 <dialog bind:this={settingsDialog} onclick={(e) => handleBackdropClick(e, settingsDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-md outline-none"><div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl p-8"><div class="flex justify-between items-center mb-8"><h2 class="text-xl font-black uppercase italic tracking-tighter text-white">Settings</h2><button onclick={() => settingsDialog.close()} class="text-slate-500 hover:text-white transition-colors">✕</button></div><label class="flex items-center justify-between cursor-pointer group"><span class="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">Untamed Vocabulary (Profanity)</span><div class="relative inline-flex items-center"><input type="checkbox" bind:checked={game.allowProfanity} class="sr-only peer"><div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></div></label></div></dialog>
-<dialog bind:this={successDialog} onclick={(e) => handleBackdropClick(e, successDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-lg outline-none"><div class="bg-slate-800 border-2 border-slate-700 rounded-[3rem] shadow-2xl p-10 text-center animate-in zoom-in duration-300"><div class="w-24 h-24 mx-auto mb-6"><TreasureChest open /></div><h2 class="text-4xl font-black text-emerald-400 mb-2 italic uppercase tracking-tighter">Treasure Found!</h2><p class="text-slate-400 text-sm mb-10 italic">Your journey across the dictionary is complete.</p><div class="bg-slate-900/50 p-6 rounded-[2rem] border border-slate-700/50 mb-10"><div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-4 px-2"><span class="text-xs font-black text-slate-500 uppercase">Total Score</span><span class="text-3xl font-black text-white italic">{game.score}</span></div><div class="flex justify-between items-center px-2"><span class="text-xs font-black text-slate-500 uppercase">Total Steps</span><span class="text-xl font-black text-white">{game.history.length - 1}</span></div></div><div class="flex flex-col gap-3"><Button variant="primary" size="lg" onclick={shareResult}>SHARE JOURNEY</Button><div class="grid grid-cols-2 gap-3"><Button variant="secondary" onclick={() => { game.reset(); successDialog.close(); }}>RETRY</Button><Button variant="secondary" onclick={() => { successDialog.close(); levelsDialog.showModal(); }}>NEW MAP</Button></div><button onclick={() => successDialog.close()} class="mt-4 text-slate-500 hover:text-white text-[10px] font-black uppercase tracking-widest">DISMISS</button></div></div></dialog>
+<dialog bind:this={successDialog} onclick={(e) => handleBackdropClick(e, successDialog)} class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-lg outline-none"><div class="bg-slate-800 border-2 border-slate-700 rounded-[3rem] shadow-2xl p-10 text-center animate-in zoom-in duration-300 relative"><button onclick={() => successDialog.close()} class="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors text-2xl font-bold">✕</button><div class="w-24 h-24 mx-auto mb-6"><TreasureChest open /></div><h2 class="text-4xl font-black text-emerald-400 mb-2 italic uppercase tracking-tighter">Treasure Found!</h2><p class="text-slate-400 text-sm mb-10 italic">Your journey across the dictionary is complete.</p><div class="bg-slate-900/50 p-6 rounded-[2rem] border border-slate-700/50 mb-10"><div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-4 px-2"><span class="text-xs font-black text-slate-500 uppercase">Total Score</span><span class="text-3xl font-black text-white italic">{game.score}</span></div><div class="flex justify-between items-center px-2"><span class="text-xs font-black text-slate-500 uppercase">Total Steps</span><span class="text-xl font-black text-white">{game.history.length - 1}</span></div></div><div class="flex flex-col gap-3"><Button variant="primary" size="lg" onclick={shareResult}>SHARE JOURNEY</Button><div class="grid grid-cols-2 gap-3"><Button variant="secondary" onclick={() => { game.reset(); successDialog.close(); }}>RETRY</Button><Button variant="secondary" onclick={() => { successDialog.close(); levelsDialog.showModal(); }}>NEW MAP</Button></div></div></div></dialog>
 
 <style>
   @keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); } 20%, 40%, 60%, 80% { transform: translateX(4px); } }

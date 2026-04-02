@@ -38,7 +38,6 @@ async function build() {
     
     const dictPath = path.join(__dirname, '../node_modules/wordnet-db/dict');
     const indexFiles = ['index.adj', 'index.adv', 'index.noun', 'index.verb'];
-    
     const allLemmas = new Set();
 
     for (const file of indexFiles) {
@@ -46,7 +45,6 @@ async function build() {
         const filePath = path.join(dictPath, file);
         const content = fs.readFileSync(filePath, 'utf8');
         const lines = content.split('\n');
-        
         lines.forEach(line => {
             if (line.startsWith('  ')) return;
             const parts = line.split(' ');
@@ -58,7 +56,7 @@ async function build() {
     }
 
     const lemmas = Array.from(allLemmas);
-    console.log(`Extracted ${lemmas.length} unique lemmas. Processing relations and inflections...`);
+    console.log(`Extracted ${lemmas.length} unique lemmas. Processing relations...`);
 
     const batchSize = 500;
     for (let i = 0; i < lemmas.length; i += batchSize) {
@@ -79,13 +77,18 @@ async function build() {
 
                     if (res.ptrs) {
                         for (const ptr of res.ptrs) {
-                            if (ptr.pointerSymbol === '!') {
+                            // ! = Antonym, & = Similar to, = = Attribute
+                            if (ptr.pointerSymbol === '!' || ptr.pointerSymbol === '&' || ptr.pointerSymbol === '=') {
                                 try {
-                                    const antRes = await wordnet.getAsync(ptr.synsetOffset, ptr.pos);
-                                    antRes.synonyms.forEach(a => {
-                                        const ant = a.toLowerCase();
-                                        if (ant !== lemma && !ant.includes('_') && !ant.includes('-')) {
-                                            antonyms.add(ant);
+                                    const related = await wordnet.getAsync(ptr.synsetOffset, ptr.pos);
+                                    related.synonyms.forEach(r => {
+                                        const rel = r.toLowerCase();
+                                        if (rel !== lemma && !rel.includes('_') && !rel.includes('-')) {
+                                            if (ptr.pointerSymbol === '!') {
+                                                antonyms.add(rel);
+                                            } else {
+                                                synonyms.add(rel);
+                                            }
                                         }
                                     });
                                 } catch (e) {}
@@ -94,49 +97,48 @@ async function build() {
                     }
                 }
 
-                const tags = [];
-                if (allProfanity.has(lemma)) {
-                    tags.push('profanity');
-                }
-
-                const entry = {
+                const tags = allProfanity.has(lemma) ? ['profanity'] : [];
+                dictionary[lemma] = {
                     synonyms: Array.from(synonyms),
                     antonyms: Array.from(antonyms),
                     tags,
                     rank: wordRanks[lemma] || DEFAULT_RANK
                 };
 
-                dictionary[lemma] = entry;
-
                 const plural = simplePlural(lemma);
                 if (!dictionary[plural]) {
                     dictionary[plural] = {
-                        synonyms: entry.synonyms.map(s => simplePlural(s)),
-                        antonyms: entry.antonyms.map(a => simplePlural(a)),
-                        tags: [...entry.tags],
-                        rank: wordRanks[plural] || Math.min(entry.rank + 5000, DEFAULT_RANK)
+                        synonyms: Array.from(synonyms).map(s => simplePlural(s)),
+                        antonyms: Array.from(antonyms).map(a => simplePlural(a)),
+                        tags: [...tags],
+                        rank: wordRanks[plural] || Math.min(dictionary[lemma].rank + 5000, DEFAULT_RANK)
                     };
                 }
-
             } catch (e) {}
         }));
-        
-        if (i % 5000 === 0) {
-            console.log(`Processed ${i} / ${lemmas.length} words...`);
-        }
+        if (i % 5000 === 0) console.log(`Processed ${i} / ${lemmas.length} words...`);
     }
+
+    // Ensure reciprocal relationships
+    console.log('Ensuring reciprocal relationships...');
+    Object.keys(dictionary).forEach(word => {
+        dictionary[word].synonyms.forEach(syn => {
+            if (dictionary[syn] && !dictionary[syn].synonyms.includes(word)) {
+                dictionary[syn].synonyms.push(word);
+            }
+        });
+        dictionary[word].antonyms.forEach(ant => {
+            if (dictionary[ant] && !dictionary[ant].antonyms.includes(word)) {
+                dictionary[ant].antonyms.push(word);
+            }
+        });
+    });
 
     const dictionaryContent = JSON.stringify(dictionary);
     const hash = crypto.createHash('md5').update(dictionaryContent).digest('hex');
-
-    const outputPath = path.join(__dirname, '../public/dictionary.json');
-    const hashPath = path.join(__dirname, '../public/dictionary.hash');
-
-    fs.writeFileSync(outputPath, dictionaryContent);
-    fs.writeFileSync(hashPath, hash);
-
-    console.log(`\nSuccess! Dictionary built with ${Object.keys(dictionary).length} words.`);
-    console.log(`Content Hash: ${hash}`);
+    fs.writeFileSync(path.join(__dirname, '../public/dictionary.json'), dictionaryContent);
+    fs.writeFileSync(path.join(__dirname, '../public/dictionary.hash'), hash);
+    console.log(`\nSuccess! Dictionary built. Hash: ${hash}`);
 }
 
 build();

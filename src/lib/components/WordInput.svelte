@@ -13,7 +13,7 @@
   let { value = $bindable(), validation, hasErrors, onsubmit, oninput, characterClasses }: Props = $props();
 
   const containerClasses = $derived.by(() => {
-      const base = "flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border relative";
+      const base = "flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border relative w-full";
       
       if (validation.isValid) {
           if (validation.type === 'letter') return `${base} border-blue-500 shadow-blue-500/20`;

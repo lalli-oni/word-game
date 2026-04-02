@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { type ValidationResult } from '../game.svelte';
-
   type Props = {
     word: string;
     type?: string;
@@ -24,7 +22,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div 
-    class="flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all box-border relative group/card overflow-visible"
+    class="flex items-center justify-between p-4 h-16 bg-slate-800/40 rounded-2xl border border-slate-700 shadow-xl transition-all box-border relative group/card overflow-visible w-full"
     class:border-l-4={type && type !== 'initial'}
     class:border-l-blue-500={type === 'letter'}
     class:border-l-purple-500={type === 'synonym'}
