@@ -7,7 +7,6 @@
   import JourneyTile from './lib/components/JourneyTile.svelte';
   import TreasureChest from './lib/components/TreasureChest.svelte';
   import Tooltip from './lib/components/Tooltip.svelte';
-  import PendingScore from './lib/components/PendingScore.svelte';
   import WordInput from './lib/components/WordInput.svelte';
   import './app.css';
 
@@ -434,7 +433,6 @@
                         oninput={handleInput}
                         characterClasses={getInputCharacterClasses}
                       />
-                      <PendingScore />
                     </div>
                     {#if activeErrors.length > 0}
                       <div class="ml-16 animate-in slide-in-from-top-2 fade-in duration-300 flex flex-col gap-1 text-left">

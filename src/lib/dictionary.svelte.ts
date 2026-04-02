@@ -40,7 +40,16 @@ class DictionaryService {
         const count = await this.db.count('dictionary');
         const sample = count > 0 ? await this.db.get('dictionary', 'cold') : null;
         
-        if (count === 0 || (sample && sample.rank === undefined)) {
+        // Rigorous Health Check: 
+        // 1. Must have data
+        // 2. Sample must have 'rank' (v3)
+        // 3. Sample must have 'synonyms' or 'antonyms' array (integrity)
+        const isHealthy = sample && 
+                         sample.rank !== undefined && 
+                         Array.isArray(sample.synonyms);
+
+        if (count === 0 || !isHealthy) {
+          console.warn('[IDB] Database unhealthy or missing semantic data. Re-hydrating...');
           await this.hydrate();
         } else {
           this.status = 'ready';
@@ -127,7 +136,6 @@ class DictionaryService {
           end = end.toLowerCase();
           if (start === end) return [start];
 
-          // Simple priority queue using binary insertion
           let pq: { word: string, path: string[], score: number }[] = [{ word: start, path: [start], score: 0 }];
           const bestScores = new Map<string, number>();
           bestScores.set(start, 0);
@@ -163,7 +171,6 @@ class DictionaryService {
                       
                       const newNode = { word: neighbor, path: [...path, neighbor], score: newScore };
                       
-                      // Binary insertion into priority queue
                       let low = 0, high = pq.length;
                       while (low < high) {
                           let mid = (low + high) >>> 1;
