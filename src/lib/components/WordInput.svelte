@@ -11,24 +11,37 @@
   };
 
   let { value = $bindable(), validation, hasErrors, onsubmit, oninput, characterClasses }: Props = $props();
+
+  const containerClasses = $derived.by(() => {
+      const base = "flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border relative";
+      
+      if (validation.isValid) {
+          if (validation.type === 'letter') return `${base} border-blue-500 shadow-blue-500/20`;
+          if (validation.type === 'synonym') return `${base} border-purple-500 shadow-purple-500/20`;
+          if (validation.type === 'antonym') return `${base} border-orange-500 shadow-orange-500/20`;
+          if (validation.type === 'anagram') return `${base} border-pink-500 shadow-pink-500/20`;
+      }
+      
+      if (hasErrors) return `${base} border-red-500 shadow-red-500/20`;
+      
+      return `${base} border-blue-500/30 shadow-blue-500/10`;
+  });
+
+  const buttonClasses = $derived.by(() => {
+      const base = "text-white w-20 h-full transition-all active:scale-90 flex items-center justify-center shrink-0";
+      
+      if (validation.isValid) {
+          if (validation.type === 'letter') return `${base} bg-blue-600`;
+          if (validation.type === 'synonym') return `${base} bg-purple-600`;
+          if (validation.type === 'antonym') return `${base} bg-orange-600`;
+          if (validation.type === 'anagram') return `${base} bg-pink-600`;
+      }
+      
+      return `${base} bg-slate-700`;
+  });
 </script>
 
-<form 
-    {onsubmit} 
-    class="flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border relative"
-    class:border-blue-500={validation.isValid && validation.type === 'letter'}
-    class:shadow-blue-500\/20={validation.isValid && validation.type === 'letter'}
-    class:border-purple-500={validation.isValid && validation.type === 'synonym'}
-    class:shadow-purple-500\/20={validation.isValid && validation.type === 'synonym'}
-    class:border-orange-500={validation.isValid && validation.type === 'antonym'}
-    class:shadow-orange-500\/20={validation.isValid && validation.type === 'antonym'}
-    class:border-pink-500={validation.isValid && validation.type === 'anagram'}
-    class:shadow-pink-500\/20={validation.isValid && validation.type === 'anagram'}
-    class:border-red-500={hasErrors}
-    class:shadow-red-500\/20={hasErrors}
-    class:border-blue-500\/30={!validation.isValid && !hasErrors}
-    class:shadow-blue-500\/10={!validation.isValid && !hasErrors}
->
+<form {onsubmit} class={containerClasses}>
     <div class="absolute inset-y-0 left-5 flex items-center pointer-events-none font-mono text-2xl uppercase tracking-[0.2em] font-black">
         {#each value.toUpperCase().split('') as char, i}
             <span class={characterClasses(char, i)}>{char}</span>
@@ -44,15 +57,7 @@
         maxlength="20" 
     />
     
-    <button 
-        type="submit" 
-        class="text-white w-20 h-full transition-all active:scale-90 flex items-center justify-center shrink-0"
-        class:bg-blue-600={validation.isValid && validation.type === 'letter'}
-        class:bg-purple-600={validation.isValid && validation.type === 'synonym'}
-        class:bg-orange-600={validation.isValid && validation.type === 'antonym'}
-        class:bg-pink-600={validation.isValid && validation.type === 'anagram'}
-        class:bg-slate-700={!validation.isValid}
-    >
+    <button type="submit" class={buttonClasses}>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7" />
         </svg>
