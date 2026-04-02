@@ -75,6 +75,23 @@ async function build() {
                             synonyms.add(syn);
                         }
                     });
+
+                    // Antonym extraction
+                    if (res.ptrs) {
+                        for (const ptr of res.ptrs) {
+                            if (ptr.pointerSymbol === '!') { // '!' is the symbol for Antonym in WordNet
+                                try {
+                                    const antRes = await wordnet.getAsync(ptr.synsetOffset, ptr.pos);
+                                    antRes.synonyms.forEach(a => {
+                                        const ant = a.toLowerCase();
+                                        if (ant !== lemma && !ant.includes('_') && !ant.includes('-')) {
+                                            antonyms.add(ant);
+                                        }
+                                    });
+                                } catch (e) {}
+                            }
+                        }
+                    }
                 }
 
                 const tags = [];
@@ -91,16 +108,13 @@ async function build() {
 
                 dictionary[lemma] = entry;
 
-                // Simple automatic pluralization for nouns
-                // We'll check if the lemma appears in index.noun
-                // For this script, we'll just add it if it's not already there
                 const plural = simplePlural(lemma);
                 if (!dictionary[plural]) {
                     dictionary[plural] = {
                         synonyms: entry.synonyms.map(s => simplePlural(s)),
                         antonyms: entry.antonyms.map(a => simplePlural(a)),
                         tags: [...entry.tags],
-                        rank: wordRanks[plural] || Math.min(entry.rank + 5000, DEFAULT_RANK) // Slightly more obscure than lemma
+                        rank: wordRanks[plural] || Math.min(entry.rank + 5000, DEFAULT_RANK)
                     };
                 }
 
@@ -114,7 +128,7 @@ async function build() {
 
     const outputPath = path.join(__dirname, '../public/dictionary.json');
     fs.writeFileSync(outputPath, JSON.stringify(dictionary));
-    console.log(`\nSuccess! Dictionary built with ${Object.keys(dictionary).length} words (including inflections).`);
+    console.log(`\nSuccess! Dictionary built with ${Object.keys(dictionary).length} words.`);
 }
 
 build();

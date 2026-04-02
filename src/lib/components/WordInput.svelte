@@ -41,30 +41,25 @@
   });
 </script>
 
-<div class="flex items-center gap-3 w-full">
-    <form {onsubmit} class={containerClasses}>
-        <div class="absolute inset-y-0 left-5 flex items-center pointer-events-none font-mono text-2xl uppercase tracking-[0.2em] font-black">
-            {#each value.toUpperCase().split('') as char, i}
-                <span class={characterClasses(char, i)}>{char}</span>
-            {/each}
-        </div>
-        
-        <input 
-            type="text" 
-            bind:value 
-            {oninput}
-            placeholder="NEXT WORD..." 
-            class="min-w-0 flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-400/40 text-transparent caret-white selection:bg-blue-500/30" 
-            maxlength="20" 
-        />
-        
-        <button type="submit" class={buttonClasses} aria-label="Submit Move">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7" />
-            </svg>
-        </button>
-    </form>
-
-    <!-- Score Alignment Spacer -->
-    <div class="w-12 shrink-0"></div>
-</div>
+<form {onsubmit} class={containerClasses}>
+    <div class="absolute inset-y-0 left-5 flex items-center pointer-events-none font-mono text-2xl uppercase tracking-[0.2em] font-black">
+        {#each value.toUpperCase().split('') as char, i}
+            <span class={characterClasses(char, i)}>{char}</span>
+        {/each}
+    </div>
+    
+    <input 
+        type="text" 
+        bind:value 
+        {oninput}
+        placeholder="NEXT WORD..." 
+        class="min-w-0 flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-400/40 text-transparent caret-white selection:bg-blue-500/30" 
+        maxlength="20" 
+    />
+    
+    <button type="submit" class={buttonClasses} aria-label="Submit Move">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7" />
+        </svg>
+    </button>
+</form>
