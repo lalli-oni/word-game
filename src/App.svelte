@@ -127,8 +127,6 @@
   }
 
   const difficultyOrder = { easy: 0, medium: 1, hard: 2 };
-  
-  // Dynamic filtered list based on profanity setting
   let filteredJourneys = $derived(
       journeys
         .filter(j => game.allowProfanity || !j.tags?.includes('profanity'))
@@ -180,7 +178,7 @@
     </div>
 {/if}
 
-<div class="fixed inset-0 bg-slate-900 text-white flex flex-col items-center overflow-hidden overscroll-none h-screen">
+<div class="fixed inset-0 bg-slate-900 text-white flex flex-col items-center overflow-hidden overscroll-none h-[100dvh]">
   <header class="flex-none w-full max-w-lg pt-8 pb-4 px-4">
     <div class="flex flex-col items-center mb-6 animate-in fade-in zoom-in duration-700">
         <div class="flex items-center gap-2"><span class="text-4xl md:text-5xl font-black bg-white text-slate-900 px-3 py-1 rounded-2xl transform -rotate-3 shadow-[4px_4px_0px_#3b82f6] border-2 border-slate-900 border-b-4 border-r-4 uppercase leading-none">WORD</span><div class="w-10 h-0.5 border-t-4 border-dashed border-slate-700 self-end mb-3"></div></div>
@@ -190,7 +188,7 @@
     <div class="flex justify-between items-center px-4 h-[52px]">
       <div class="flex gap-2 h-full items-center">
         <Button variant="secondary" size="icon" onclick={() => levelsDialog.showModal()} tooltip="Choose Journey" disabled={game.isGenerating || game.isSolving} class="h-full"><span>🗺️</span></Button>
-        <Button variant="secondary" size="icon" onclick={() => confirmAction('Wave your wand?', 'Waving your wand will automatically find the shortest path to the final word from your current location.', 'WAVE THE WAND', 'I CAN DO IT MYSELF!', () => game.solve())} loading={game.isSolving} tooltip="Magic Path" disabled={game.isGenerating} class="h-full"><span>🪄</span></Button>
+        <Button variant="secondary" size="icon" onclick={() => confirmAction('Wave your wand?', 'Waving your wand will automatically find the shortest path to the final word from your current location.', 'WAVE THE WAND', 'I CAN DO IT MYSELF!', () => game.solve())} loading={game.isSolving} tooltip="Magic Path" disabled={game.isGenerating || game.isGameOver} class="h-full"><span>🪄</span></Button>
         <div class="random-config-container relative flex flex-col items-center group h-full" onmouseenter={() => showRandomConfig = true} onmouseleave={() => showRandomConfig = false}>
             <div class="relative flex items-center bg-slate-800 rounded-2xl border border-slate-700 shadow-xl h-full z-20 transition-all overflow-hidden" class:rounded-b-none={showRandomConfig}>
                 <button onclick={() => confirmAction('Abandon Journey?', 'Starting a new journey will clear your current progress.', 'START NEW', 'STAY ON JOURNEY', () => game.loadRandomJourney())} disabled={game.isGenerating || game.isSolving} class="flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 h-full px-4 transition-all active:scale-95 leading-none border-r border-blue-700 shrink-0 text-white disabled:opacity-50">{#if game.isGenerating}<svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>{:else}<span class="text-lg">🎲</span><span class="font-mono text-base">{game.randomWordLength}</span>{/if}</button>
@@ -215,10 +213,9 @@
     </div>
   </section>
 
-  <!-- UNIFIED MAX-WIDTH CONTAINER FOR ALL ROWS -->
   <div class="flex-1 w-full max-w-lg px-4 flex flex-col min-h-0 relative">
-    <div class="flex-none">
-        <WordRow type="origin" class="overflow-visible">
+    <div class="flex-none pb-2">
+        <WordRow type="origin">
             {#snippet spine()}<div class="w-2.5 h-2.5 rounded-full bg-slate-100 shadow-[0_0_10px_rgba(255,255,255,0.4)]"></div>{/snippet}
             {#snippet card()}<JourneyTile word={game.startWord} flash={flashWords.includes(game.startWord)} />{/snippet}
             {#snippet side()}<span class="text-sm font-black text-slate-400">+0</span>{/snippet}
@@ -229,10 +226,10 @@
         {#if showTopIndicator}<div class="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-slate-900 to-transparent z-10 pointer-events-none"></div>{/if}
         {#if showBottomIndicator}<div class="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-slate-900 to-transparent z-10 pointer-events-none"></div>{/if}
 
-        <div bind:this={scrollContainer} onscroll={handleScroll} class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pb-2 scroll-smooth overflow-x-visible">
+        <div bind:this={scrollContainer} onscroll={handleScroll} class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pb-2 scroll-smooth">
             {#each game.history.slice(1) as move, i}
                 {#if i < game.history.length - 2 || !game.isGameOver}
-                    <WordRow type="waypoint" class="overflow-visible">
+                    <WordRow type="waypoint">
                         {#snippet spine()}<div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg">{i + 1}</div>{/snippet}
                         {#snippet card()}<JourneyTile word={move.word} type={move.type} flash={flashWords.includes(move.word)} />{/snippet}
                         {#snippet side()}<Tooltip title="Score Breakdown">{#snippet children()}<span class="text-sm font-black text-slate-100 group-hover/row:text-white transition-colors cursor-help">+{move.moveScore}</span>{/snippet}{#snippet content()}<div class="space-y-3 min-w-[160px]"><div class="flex justify-between items-center text-[12px]"><span class="text-slate-400 font-bold uppercase tracking-widest">Base Move</span><span class="font-mono font-black text-white">100</span></div><div class="flex justify-between items-center text-[12px] text-emerald-400"><span class="italic font-bold">Rarity Bonus</span><span class="font-mono font-black">-{100 - (move.moveScore || 0)}</span></div><div class="flex justify-between items-center font-black mt-4 pt-4 border-t-2 border-slate-800 text-lg"><span class="uppercase tracking-tighter">TOTAL</span><span class="text-white font-mono">{move.moveScore}</span></div></div>{/snippet}</Tooltip>{/snippet}
@@ -242,7 +239,7 @@
 
             {#if !game.isGameOver}
                 <div class="flex flex-col gap-2 shrink-0">
-                    <WordRow type="input" class="overflow-visible">
+                    <WordRow type="input">
                         {#snippet spine()}<div class="text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 border-dashed text-slate-600">{game.history.length}</div>{/snippet}
                         {#snippet card()}<div class={isShaking ? 'animate-shake' : ''}><WordInput bind:value={guess} {validation} hasErrors={activeErrors.length > 0} onsubmit={handleSubmit} oninput={handleInput} characterClasses={getInputCharacterClasses} /></div>{/snippet}
                     </WordRow>
@@ -254,15 +251,15 @@
         </div>
     </div>
 
-    <div class="flex-none pt-0 pb-8">
+    <div class="flex-none pb-8">
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class={game.isGameOver ? 'cursor-pointer group/goal active:scale-[0.98] transition-all' : ''} onclick={() => game.isGameOver && successDialog.showModal()}>
-            <WordRow type="destination" class="overflow-visible">
+            <WordRow type="destination">
                 {#snippet spine()}
-                    <div class="w-6 h-6 relative">
+                    <div class="w-6 h-6 relative flex items-center justify-center">
                         {#if game.isGameOver}
-                            <div class="absolute inset-0 bg-emerald-400/30 blur-lg rounded-full animate-pulse"></div>
+                            <div class="absolute w-8 h-8 bg-emerald-400/20 blur-md rounded-full animate-pulse"></div>
                         {/if}
                         <div class="relative z-10">
                             <TreasureChest open={game.isGameOver} />
@@ -272,7 +269,7 @@
                 {#snippet card()}
                     <div class="relative">
                         {#if game.isGameOver}
-                            <div class="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 blur rounded-2xl animate-pulse"></div>
+                            <div class="absolute -inset-0.5 bg-emerald-500/10 blur rounded-2xl animate-pulse"></div>
                         {/if}
                         <JourneyTile word={game.finishWord} isGoal type={game.isGameOver ? game.history[game.history.length - 1].type : undefined} flash={flashWords.includes(game.finishWord)} />
                     </div>

@@ -177,7 +177,6 @@ export class GameEngine {
               antonyms: entry.antonyms
           };
           console.log(`[Game] Loaded ${entry.synonyms.length} synonyms and ${entry.antonyms.length} antonyms.`);
-          console.log(`[Game] Antonyms:`, entry.antonyms);
       } else {
           console.warn(`[Game] No dictionary entry found for: ${word}`);
           this.#validSemanticMoves = { synonyms: [], antonyms: [] };
@@ -256,14 +255,25 @@ export class GameEngine {
       console.time('[Generator] Direct Generation');
       
       try {
-          while (!this.#pregeneratedJourney) {
+          let timeoutCounter = 0;
+          const MAX_TIMEOUT_ATTEMPTS = 5; // Total 5 batches of 50 attempts
+
+          while (!this.#pregeneratedJourney && timeoutCounter < MAX_TIMEOUT_ATTEMPTS) {
               await this.pregenerateRandomJourney();
               if (this.#pregeneratedJourney) break;
-              await new Promise(r => setTimeout(r, 100));
+              timeoutCounter++;
+              await new Promise(r => setTimeout(r, 100)); // Brief pause to prevent UI freezing
           }
-          this.loadJourney(this.#pregeneratedJourney!);
-          this.#pregeneratedJourney = null;
-          this.triggerPregenerate();
+
+          if (this.#pregeneratedJourney) {
+              this.loadJourney(this.#pregeneratedJourney!);
+              this.#pregeneratedJourney = null;
+              this.triggerPregenerate();
+          } else {
+              console.error('[Generator] Failed to generate a journey in time.');
+              // Reset state to avoid UI hang
+              this.isGenerating = false;
+          }
       } finally {
           console.timeEnd('[Generator] Direct Generation');
           this.isGenerating = false;
@@ -350,10 +360,6 @@ export class GameEngine {
       }
 
       const wordLower = word.toLowerCase();
-      console.log(`[Game] Validating semantic for: ${wordLower}`);
-      console.log(`[Game] Available Synonyms:`, this.#validSemanticMoves.synonyms);
-      console.log(`[Game] Available Antonyms:`, this.#validSemanticMoves.antonyms);
-
       if (isVisible && this.#validSemanticMoves.synonyms.includes(wordLower)) {
           return { isValid: true, type: 'synonym', errors: [], obscurity };
       }
