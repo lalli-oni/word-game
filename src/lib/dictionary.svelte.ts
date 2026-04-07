@@ -1,4 +1,5 @@
 import { openDB, type IDBPDatabase } from 'idb';
+import { errorService } from './error.svelte';
 
 export interface DictionaryEntry {
   word: string;
@@ -17,6 +18,12 @@ class DictionaryService {
   status = $state<'idle' | 'hydrating' | 'ready' | 'error'>('idle');
   progress = $state(0);
   errorMessage = $state<string | null>(null);
+
+  private getAssetUrl(filename: string) {
+      const base = import.meta.env.BASE_URL;
+      const cleanBase = base.endsWith('/') ? base : base + '/';
+      return `${cleanBase}${filename}`;
+  }
 
   async init() {
     if (this.db) return;
@@ -45,10 +52,16 @@ class DictionaryService {
         
         let remoteHash = '';
         try {
-            const hResp = await fetch('dictionary.hash');
-            if (hResp.ok) remoteHash = (await hResp.text()).trim();
-            console.log(`[IDB] Remote hash: ${remoteHash}`);
-        } catch (e) {
+            const hUrl = this.getAssetUrl('dictionary.hash');
+            console.log(`[IDB] Fetching hash from: ${hUrl}`);
+            const hResp = await fetch(hUrl);
+            if (hResp.ok) {
+                remoteHash = (await hResp.text()).trim();
+                console.log(`[IDB] Remote hash: ${remoteHash}`);
+            } else {
+                console.warn(`[IDB] Failed to fetch hash: ${hResp.status} ${hResp.statusText}`);
+            }
+        } catch (e: any) {
             console.warn('[IDB] Could not fetch dictionary hash', e);
         }
 
@@ -67,7 +80,7 @@ class DictionaryService {
     } catch (e: any) {
         this.status = 'error';
         this.errorMessage = e.message || 'Unknown database error';
-        console.error('[IDB] Init error:', e);
+        errorService.report(`Database Initialization Failed: ${this.errorMessage}`, e.stack, { dbCount: 'unknown' });
         throw e;
     }
   }
@@ -78,9 +91,12 @@ class DictionaryService {
     this.errorMessage = null;
 
     try {
-      console.log('[IDB] Fetching dictionary.json...');
-      const response = await fetch('dictionary.json');
-      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+      const dUrl = this.getAssetUrl('dictionary.json');
+      console.log(`[IDB] Fetching dictionary from: ${dUrl}`);
+      const response = await fetch(dUrl);
+      if (!response.ok) {
+          throw new Error(`HTTP Error ${response.status}: ${response.statusText} for ${dUrl}`);
+      }
       
       const data = await response.json();
       const words = Object.keys(data);
@@ -117,7 +133,7 @@ class DictionaryService {
     } catch (error: any) {
       this.status = 'error';
       this.errorMessage = error.message;
-      console.error('[IDB] Hydration error:', error);
+      errorService.report(`Dictionary Hydration Failed: ${this.errorMessage}`, error.stack);
       throw error;
     }
   }
