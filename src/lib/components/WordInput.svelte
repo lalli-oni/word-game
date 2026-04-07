@@ -12,6 +12,8 @@
 
   let { value = $bindable(), validation, hasErrors, onsubmit, oninput, characterClasses }: Props = $props();
 
+  let inputEl: HTMLInputElement;
+
   const containerClasses = $derived.by(() => {
       const base = "flex-1 flex h-16 bg-slate-900 border-2 rounded-2xl transition-all shadow-2xl overflow-hidden box-border relative w-full";
       
@@ -39,6 +41,13 @@
       
       return `${base} bg-slate-800/50`;
   });
+
+  // Keep focus on the input after moves
+  $effect(() => {
+      if (value === '' && inputEl) {
+          inputEl.focus();
+      }
+  });
 </script>
 
 <form {onsubmit} class={containerClasses}>
@@ -49,12 +58,14 @@
     </div>
     
     <input 
+        bind:this={inputEl}
         type="text" 
         bind:value 
         {oninput}
         placeholder="NEXT WORD..." 
         class="min-w-0 flex-1 bg-transparent focus:outline-none px-5 text-2xl font-mono uppercase tracking-[0.2em] font-black placeholder:text-slate-400/40 text-transparent caret-white selection:bg-blue-500/30" 
-        maxlength="20" 
+        maxlength="20"
+        autofocus
     />
     
     <button type="submit" class={buttonClasses} aria-label="Submit Move">
