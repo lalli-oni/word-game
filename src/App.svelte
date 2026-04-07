@@ -41,9 +41,16 @@
     activeErrors = [];
     const word = guess.toUpperCase();
     if (word.length >= 2) {
-        const isDuplicate = game.history.some(m => m.word === word) || word === game.finishWord;
+        // Only flash words in history (duplicates), NOT the finish word
+        const isDuplicate = game.history.some(m => m.word === word);
         flashWords = isDuplicate ? [word] : [];
+        
         validation = await game.validateMove(guess);
+
+        // Auto-submit if it's the final word and valid
+        if (word === game.finishWord && validation.isValid) {
+            handleSubmit();
+        }
     } else {
         flashWords = [];
         validation = { isValid: false, type: 'unknown', errors: [] };
@@ -230,8 +237,9 @@
     </div>
   </section>
 
+  <!-- UNIFIED MAX-WIDTH CONTAINER FOR ALL ROWS -->
   <div class="flex-1 w-full max-w-lg px-4 flex flex-col min-h-0 relative scrollbar-gutter-stable">
-    <div class="flex-none">
+    <div class="flex-none pb-2">
         <WordRow type="origin">
             {#snippet spine()}<div class="w-2.5 h-2.5 rounded-full bg-slate-100 shadow-[0_0_10px_rgba(255,255,255,0.4)]"></div>{/snippet}
             {#snippet card()}<JourneyTile word={game.startWord} flash={flashWords.includes(game.startWord)} />{/snippet}
@@ -243,7 +251,7 @@
         {#if showTopIndicator}<div class="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-slate-900 to-transparent z-10 pointer-events-none"></div>{/if}
         {#if showBottomIndicator}<div class="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-slate-900 to-transparent z-10 pointer-events-none"></div>{/if}
 
-        <div bind:this={scrollContainer} onscroll={handleScroll} class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 scroll-smooth">
+        <div bind:this={scrollContainer} onscroll={handleScroll} class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pb-2 scroll-smooth">
             {#each game.history.slice(1) as move, i}
                 {#if i < game.history.length - 2 || !game.isGameOver}
                     <WordRow type="waypoint">
@@ -268,7 +276,7 @@
         </div>
     </div>
 
-    <div class="flex-none pb-8">
+    <div class="flex-none pt-0 pb-8">
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class={game.isGameOver ? 'cursor-pointer group/goal active:scale-[0.98] transition-all' : ''} onclick={() => game.isGameOver && successDialog.showModal()}>
@@ -281,16 +289,14 @@
                         <div class="relative z-10">
                             <TreasureChest open={game.isGameOver} />
                         </div>
-                    </div>
-                {/snippet}
+                    </div>{/snippet}
                 {#snippet card()}
                     <div class="relative">
                         {#if game.isGameOver}
                             <div class="absolute -inset-0.5 bg-emerald-500/10 blur rounded-2xl animate-pulse"></div>
                         {/if}
                         <JourneyTile word={game.finishWord} isGoal type={game.isGameOver ? game.history[game.history.length - 1].type : undefined} flash={flashWords.includes(game.finishWord)} />
-                    </div>
-                {/snippet}
+                    </div>{/snippet}
                 {#snippet side()}
                     {#if game.isGameOver}
                         {@const last = game.history[game.history.length - 1]}
