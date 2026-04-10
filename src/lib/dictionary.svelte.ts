@@ -1,5 +1,6 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import { errorService } from './error.svelte';
+import { calculateObscurity, isAnagram, isOneLetterDifferent } from './word-utils';
 
 export interface DictionaryEntry {
   word: string;
@@ -7,6 +8,8 @@ export interface DictionaryEntry {
   antonyms: string[];
   tags: string[];
   rank: number;
+  isPriority?: boolean;
+  neighbors?: string[];
 }
 
 class DictionaryService {
@@ -14,10 +17,16 @@ class DictionaryService {
   private dbVersion = 3;
   private db: IDBPDatabase | null = null;
   private HASH_KEY = 'dictionary_content_hash';
+
+  #hydrationSource: Record<string, any> | null = null;
   
   status = $state<'idle' | 'hydrating' | 'ready' | 'error'>('idle');
-  progress = $state(0);
+  isPriorityLoaded = $state(false);
+  totalBatches = $state(0);
+  completedBatches = $state(0);
   errorMessage = $state<string | null>(null);
+
+  overallProgress = $derived(this.totalBatches > 0 ? Math.round((this.completedBatches / this.totalBatches) * 100) : 0);
 
   private getAssetUrl(filename: string) {
       const base = import.meta.env.BASE_URL;
@@ -53,21 +62,15 @@ class DictionaryService {
         let remoteHash = '';
         try {
             const hUrl = this.getAssetUrl('dictionary.hash');
-            console.log(`[IDB] Fetching hash from: ${hUrl}`);
             const hResp = await fetch(hUrl);
             if (hResp.ok) {
                 remoteHash = (await hResp.text()).trim();
-                console.log(`[IDB] Remote hash: ${remoteHash}`);
-            } else {
-                console.warn(`[IDB] Failed to fetch hash: ${hResp.status} ${hResp.statusText}`);
             }
         } catch (e: any) {
             console.warn('[IDB] Could not fetch dictionary hash', e);
         }
 
         const localHash = localStorage.getItem(this.HASH_KEY);
-        console.log(`[IDB] Local hash: ${localHash}`);
-        
         const needsHydration = count === 0 || (remoteHash && remoteHash !== localHash);
 
         if (needsHydration) {
@@ -75,6 +78,7 @@ class DictionaryService {
           await this.hydrate(remoteHash);
         } else {
           console.log('[IDB] Database is up to date.');
+          this.isPriorityLoaded = true;
           this.status = 'ready';
         }
     } catch (e: any) {
@@ -87,7 +91,8 @@ class DictionaryService {
 
   private async hydrate(newHash: string) {
     this.status = 'hydrating';
-    this.progress = 0;
+    this.completedBatches = 0;
+    this.totalBatches = 0;
     this.errorMessage = null;
 
     try {
@@ -98,36 +103,41 @@ class DictionaryService {
           throw new Error(`HTTP Error ${response.status}: ${response.statusText} for ${dUrl}`);
       }
       
-      const data = await response.json();
-      const words = Object.keys(data);
-      const total = words.length;
-      console.log(`[IDB] Starting hydration of ${total} words...`);
+      const data: Record<string, any> = await response.json();
+      this.#hydrationSource = data;
+      const allWords = Object.keys(data);
+      
+      // Separate priority words
+      const priorityBatch: string[] = [];
+      const standardWords: string[] = [];
+      
+      for (const word of allWords) {
+          if (data[word].isPriority) {
+              priorityBatch.push(word);
+          } else {
+              standardWords.push(word);
+          }
+      }
+
+      const BATCH_SIZE = 5000;
+      const numStandardBatches = Math.ceil(standardWords.length / BATCH_SIZE);
+      this.totalBatches = 1 + numStandardBatches; // Priority + Standard chunks
+
+      console.log(`[IDB] Starting hydration: ${priorityBatch.length} priority words, ${standardWords.length} standard words.`);
       
       const tx = this.db!.transaction('dictionary', 'readwrite');
       const store = tx.objectStore('dictionary');
-
       await store.clear();
-
-      let current = 0;
-      for (const word of words) {
-        await store.put({
-          word,
-          length: word.length,
-          ...data[word]
-        });
-        current++;
-        if (current % 10000 === 0) {
-            this.progress = Math.round((current / total) * 100);
-            console.log(`[IDB] Hydration progress: ${this.progress}%`);
-        }
-      }
-
       await tx.done;
-      console.log('[IDB] Hydration complete.');
+
+      // 1. Process Priority Batch
+      await this.processBatch(priorityBatch, data);
+      this.completedBatches = 1;
+      this.isPriorityLoaded = true;
+      console.log('[IDB] Priority batch loaded. Ready for play.');
       
-      if (newHash) {
-          localStorage.setItem(this.HASH_KEY, newHash);
-      }
+      // 2. Process Standard Batches (async)
+      this.processRemaining(standardWords, data, BATCH_SIZE, newHash);
       
       this.status = 'ready';
     } catch (error: any) {
@@ -138,10 +148,53 @@ class DictionaryService {
     }
   }
 
+  private async processRemaining(words: string[], data: Record<string, any>, batchSize: number, newHash: string) {
+      for (let i = 0; i < words.length; i += batchSize) {
+          const chunk = words.slice(i, i + batchSize);
+          await new Promise(resolve => setTimeout(resolve, 0)); // Yield thread
+          await this.processBatch(chunk, data);
+          this.completedBatches++;
+      }
+      
+      if (newHash) {
+          localStorage.setItem(this.HASH_KEY, newHash);
+      }
+      this.#hydrationSource = null;
+      console.log('[IDB] All batches completed. Memory fallback released.');
+  }
+
+  private async processBatch(words: string[], data: Record<string, any>) {
+      const tx = this.db!.transaction('dictionary', 'readwrite');
+      const store = tx.objectStore('dictionary');
+      
+      for (const word of words) {
+          await store.put({
+            word,
+            length: word.length,
+            ...data[word]
+          });
+      }
+      await tx.done;
+  }
+
   async getEntry(word: string): Promise<DictionaryEntry | undefined> {
+    const wordLower = word.toLowerCase();
     if (!this.db) await this.init();
-    const entry = await this.db!.get('dictionary', word.toLowerCase());
-    return entry;
+    
+    // 1. Try IndexedDB
+    const entry = await this.db!.get('dictionary', wordLower);
+    if (entry) return entry;
+    
+    // 2. Fallback to in-memory source during hydration
+    if (this.#hydrationSource && this.#hydrationSource[wordLower]) {
+        return {
+            word: wordLower,
+            length: wordLower.length,
+            ...this.#hydrationSource[wordLower]
+        };
+    }
+    
+    return undefined;
   }
 
   async getRandomWord(length?: number): Promise<string> {
@@ -179,7 +232,15 @@ class DictionaryService {
           const bestScores = new Map<string, number>();
           bestScores.set(start, 0);
 
-          const sameLengthWords = await this.getWordsOfLength(start.length);
+          const idbWords = await this.getWordsOfLength(start.length);
+          
+          // Merge with in-memory words during hydration for 100% solver accuracy
+          const sameLengthWords = new Set(idbWords);
+          if (this.#hydrationSource) {
+              Object.keys(this.#hydrationSource).forEach(w => {
+                  if (w.length === start.length) sameLengthWords.add(w);
+              });
+          }
 
           while (pq.length > 0) {
               const { word: current, path, score } = pq.shift()!;
@@ -191,9 +252,14 @@ class DictionaryService {
               if (!entry) continue;
 
               const neighbors = new Set([...entry.synonyms, ...entry.antonyms]);
-              for (const candidate of sameLengthWords) {
-                  if (this.isOneLetterDifferent(current, candidate) || this.isAnagram(current, candidate)) {
-                      neighbors.add(candidate);
+              
+              if (entry.neighbors) {
+                  entry.neighbors.forEach(n => neighbors.add(n));
+              } else {
+                  for (const candidate of sameLengthWords) {
+                      if (isOneLetterDifferent(current, candidate) || isAnagram(current, candidate)) {
+                          neighbors.add(candidate);
+                      }
                   }
               }
 
@@ -201,7 +267,7 @@ class DictionaryService {
                   const neighborEntry = await this.getEntry(neighbor);
                   if (!neighborEntry) continue;
 
-                  const obscurity = this.calculateObscurity(neighborEntry.rank);
+                  const obscurity = calculateObscurity(neighborEntry.rank);
                   const moveScore = Math.max(10, 100 - (obscurity * 8));
                   const newScore = score + moveScore;
 
@@ -227,40 +293,11 @@ class DictionaryService {
       }
   }
 
-  private calculateObscurity(rank: number): number {
-    if (rank <= 1000) return 0;
-    if (rank <= 5000) return 1;
-    if (rank <= 10000) return 2;
-    if (rank <= 20000) return 3;
-    if (rank <= 30000) return 4;
-    if (rank <= 40000) return 5;
-    if (rank <= 50000) return 6;
-    if (rank <= 60000) return 7;
-    if (rank <= 70000) return 8;
-    if (rank <= 80000) return 9;
-    return 10;
-  }
-
   private async getWordsOfLength(len: number): Promise<string[]> {
       if (!this.db) await this.init();
       const tx = this.db!.transaction('dictionary', 'readonly');
       const index = tx.objectStore('dictionary').index('by-length');
       return await index.getAllKeys(len) as string[];
-  }
-
-  private isOneLetterDifferent(w1: string, w2: string): boolean {
-      if (w1.length !== w2.length) return false;
-      let diffs = 0;
-      for (let i = 0; i < w1.length; i++) {
-          if (w1[i] !== w2[i]) diffs++;
-          if (diffs > 1) return false;
-      }
-      return diffs === 1;
-  }
-
-  private isAnagram(w1: string, w2: string): boolean {
-      if (w1.length !== w2.length || w1 === w2) return false;
-      return w1.split('').sort().join('') === w2.split('').sort().join('');
   }
 }
 

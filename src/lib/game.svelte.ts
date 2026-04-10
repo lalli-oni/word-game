@@ -1,5 +1,6 @@
 import { type Journey } from './journeys';
 import { dictionaryService } from './dictionary.svelte';
+import { calculateObscurity, getLetterDifferences, isAnagram } from './word-utils';
 
 export type ConnectionType = 'initial' | 'letter' | 'synonym' | 'antonym' | 'anagram' | 'unknown';
 
@@ -311,20 +312,6 @@ export class GameEngine {
       this.saveGameState();
   }
 
-  calculateObscurity(rank: number): number {
-    if (rank <= 1000) return 0;
-    if (rank <= 5000) return 1;
-    if (rank <= 10000) return 2;
-    if (rank <= 20000) return 3;
-    if (rank <= 30000) return 4;
-    if (rank <= 40000) return 5;
-    if (rank <= 50000) return 6;
-    if (rank <= 60000) return 7;
-    if (rank <= 70000) return 8;
-    if (rank <= 80000) return 9;
-    return 10;
-  }
-
   calculateMoveScore(obscurity: number): number {
       return Math.max(10, 100 - (obscurity * 8));
   }
@@ -340,7 +327,7 @@ export class GameEngine {
 
       const prevWord = this.currentWord;
       const errors: string[] = [];
-      const diffCount = this.getLetterDifferences(prevWord, word);
+      const diffCount = getLetterDifferences(prevWord, word);
       
       const entry = await dictionaryService.getEntry(word);
       const isVisible = entry && (this.#allowProfanity || !entry.tags.includes('profanity'));
@@ -349,13 +336,13 @@ export class GameEngine {
           errors.push(`"${word}" is not in our dictionary.`);
       }
 
-      const obscurity = entry ? this.calculateObscurity(entry.rank) : 10;
+      const obscurity = entry ? calculateObscurity(entry.rank) : 10;
 
       if (diffCount === 1 && prevWord.length === word.length && isVisible) {
           return { isValid: true, type: 'letter', errors: [], obscurity };
       }
 
-      if (this.isAnagram(prevWord, word) && isVisible) {
+      if (isAnagram(prevWord, word) && isVisible) {
           return { isValid: true, type: 'anagram', errors: [], obscurity };
       }
 
@@ -419,20 +406,6 @@ export class GameEngine {
 
       await this.#refreshSemanticMoves(word);
       this.saveGameState();
-  }
-
-  getLetterDifferences(word1: string, word2: string): number {
-    if (word1.length !== word2.length) return -1;
-    let diffs = 0;
-    for (let i = 0; i < word1.length; i++) {
-      if (word1[i] !== word2[i]) diffs++;
-    }
-    return diffs;
-  }
-
-  isAnagram(word1: string, word2: string): boolean {
-      if (word1 === word2 || word1.length !== word2.length) return false;
-      return word1.split('').sort().join('') === word2.split('').sort().join('');
   }
 }
 

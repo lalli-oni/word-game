@@ -5,6 +5,17 @@ const naughty = require('naughty-words');
 const subtlex = require('subtlex-word-frequencies');
 const crypto = require('crypto');
 
+// Load journeys to identify priority words
+const journeysFile = fs.readFileSync(path.join(__dirname, '../src/lib/journeys.ts'), 'utf8');
+const priorityWords = new Set();
+const wordRegex = /startWord:\s*'([^']+)'|finishWord:\s*'([^']+)'/g;
+let match;
+while ((match = wordRegex.exec(journeysFile)) !== null) {
+    const word = (match[1] || match[2]).toLowerCase();
+    priorityWords.add(word);
+}
+console.log(`Identified ${priorityWords.size} priority words from journeys.`);
+
 const wordnet = new WordNet();
 const dictionary = {};
 const allProfanity = new Set();
@@ -102,7 +113,8 @@ async function build() {
                     synonyms: Array.from(synonyms),
                     antonyms: Array.from(antonyms),
                     tags,
-                    rank: wordRanks[lemma] || DEFAULT_RANK
+                    rank: wordRanks[lemma] || DEFAULT_RANK,
+                    isPriority: priorityWords.has(lemma)
                 };
 
                 const plural = simplePlural(lemma);
@@ -111,7 +123,8 @@ async function build() {
                         synonyms: Array.from(synonyms).map(s => simplePlural(s)),
                         antonyms: Array.from(antonyms).map(a => simplePlural(a)),
                         tags: [...tags],
-                        rank: wordRanks[plural] || Math.min(dictionary[lemma].rank + 5000, DEFAULT_RANK)
+                        rank: wordRanks[plural] || Math.min(dictionary[lemma].rank + 5000, DEFAULT_RANK),
+                        isPriority: priorityWords.has(plural)
                     };
                 }
             } catch (e) {}
@@ -132,6 +145,51 @@ async function build() {
                 dictionary[ant].antonyms.push(word);
             }
         });
+    });
+
+    // Task 3: Pre-calculate neighbors for top 20,000 words
+    console.log('Pre-calculating neighbors for top 20,000 words (Super Optimized)...');
+    const allWords = Object.keys(dictionary);
+    const wordSet = new Set(allWords);
+    const topWords = allWords
+        .sort((a, b) => dictionary[a].rank - dictionary[b].rank)
+        .slice(0, 20000);
+
+    const chars = 'abcdefghijklmnopqrstuvwxyz'.split('');
+
+    // Pre-group by length for anagram speed
+    const byLength = {};
+    allWords.forEach(w => {
+        if (!byLength[w.length]) byLength[w.length] = [];
+        byLength[w.length].push(w);
+    });
+
+    topWords.forEach((word, i) => {
+        const neighbors = new Set();
+        
+        // 1. One-letter-different (Morphs) - O(L * 26)
+        for (let pos = 0; pos < word.length; pos++) {
+            for (const char of chars) {
+                if (char === word[pos]) continue;
+                const variant = word.substring(0, pos) + char + word.substring(pos + 1);
+                if (wordSet.has(variant)) neighbors.add(variant);
+            }
+        }
+
+        // 2. Anagrams - O(WordsOfSameLength)
+        const sorted = word.split('').sort().join('');
+        const sameLength = byLength[word.length] || [];
+        for (const candidate of sameLength) {
+            if (candidate === word) continue;
+            if (candidate.split('').sort().join('') === sorted) {
+                neighbors.add(candidate);
+            }
+        }
+
+        if (neighbors.size > 0) {
+            dictionary[word].neighbors = Array.from(neighbors);
+        }
+        if (i % 5000 === 0) console.log(`Processed ${i} / 20,000...`);
     });
 
     const dictionaryContent = JSON.stringify(dictionary);
