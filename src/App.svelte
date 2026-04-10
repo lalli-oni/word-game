@@ -238,41 +238,36 @@
       {#each legendItems as item}
         <Tooltip title={item.tip} position="bottom" class="flex-1 flex flex-col items-center">
             {#snippet children()}<div class="group relative flex flex-col items-center cursor-help w-full"><div class="w-full h-1.5 {item.color} rounded-full mb-2 opacity-40 group-hover:opacity-100 transition-all group-hover:scale-y-150"></div><span class="group-hover:text-slate-300 transition-colors">{item.label}</span></div>{/snippet}
-            {#snippet content()}<div class="bg-slate-950/50 p-4 rounded-[1.5rem] font-mono text-sm space-y-3 min-w-[240px]">{#each item.examples as ex}<div class="text-white border-b border-slate-800 last:border-0 pb-2 last:pb-0"><span>{@html ex}</span></div>{/each}</div>{/snippet}
+            {#snippet content()}<div class="bg-slate-950/50 p-4 rounded-3xl font-mono text-sm space-y-3 min-w-60">{#each item.examples as ex}<div class="text-white border-b border-slate-800 last:border-0 pb-2 last:pb-0"><span>{@html ex}</span></div>{/each}</div>{/snippet}
         </Tooltip>
       {/each}
     </div>
   </section>
 
-  <!-- UNIFIED MAX-WIDTH CONTAINER FOR ALL ROWS -->
+  <!-- Game area -->
   <div class="flex-1 w-full max-w-lg px-4 flex flex-col min-h-0 relative scrollbar-gutter-stable">
     <div class="flex-none pb-2">
         <WordRow type="origin">
-            {#snippet spine()}<div class="w-2.5 h-2.5 rounded-full bg-slate-100 shadow-[0_0_10px_rgba(255,255,255,0.4)]"></div>{/snippet}
-            {#snippet card()}<JourneyTile word={game.startWord} flash={flashWords.includes(game.startWord)} />{/snippet}
-            {#snippet side()}<span class="text-sm font-black text-slate-400">+0</span>{/snippet}
+          {#snippet card()}<JourneyTile word={game.startWord} flash={flashWords.includes(game.startWord)} />{/snippet}
         </WordRow>
     </div>
 
     <div class="flex-1 flex flex-col min-h-0 relative py-2">
-        {#if showTopIndicator}<div class="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-slate-900 to-transparent z-10 pointer-events-none"></div>{/if}
-        {#if showBottomIndicator}<div class="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-slate-900 to-transparent z-10 pointer-events-none"></div>{/if}
+        {#if showTopIndicator}<div class="absolute top-0 left-0 right-0 h-12 bg-linear-to-b from-slate-900 to-transparent z-10 pointer-events-none"></div>{/if}
+        {#if showBottomIndicator}<div class="absolute bottom-0 left-0 right-0 h-12 bg-linear-to-t from-slate-900 to-transparent z-10 pointer-events-none"></div>{/if}
 
         <div bind:this={scrollContainer} onscroll={handleScroll} class="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pb-2 scroll-smooth">
             {#each game.history.slice(1) as move, i}
                 {#if i < game.history.length - 2 || !game.isGameOver}
-                    <WordRow type="waypoint">
-                        {#snippet spine()}<div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg">{i + 1}</div>{/snippet}
-                        {#snippet card()}<JourneyTile word={move.word} type={move.type} flash={flashWords.includes(move.word)} />{/snippet}
-                        {#snippet side()}<Tooltip title="Score Breakdown">{#snippet children()}<span class="text-sm font-black text-slate-100 group-hover/row:text-white transition-colors cursor-help">+{move.moveScore}</span>{/snippet}{#snippet content()}<div class="space-y-3 min-w-[160px]"><div class="flex justify-between items-center text-[12px]"><span class="text-slate-400 font-bold uppercase tracking-widest">Base Move</span><span class="font-mono font-black text-white">100</span></div><div class="flex justify-between items-center text-[12px] text-emerald-400"><span class="italic font-bold">Rarity Bonus</span><span class="font-mono font-black">-{100 - (move.moveScore || 0)}</span></div><div class="flex justify-between items-center font-black mt-4 pt-4 border-t-2 border-slate-800 text-lg"><span class="uppercase tracking-tighter">TOTAL</span><span class="text-white font-mono">{move.moveScore}</span></div></div>{/snippet}</Tooltip>{/snippet}
+                    <WordRow type="history" historyIndex={i} move={move}>
+                        {#snippet card()}<JourneyTile word={move.word} type={move.type} flash={flashWords.includes(move.word)}  />{/snippet}
                     </WordRow>
                 {/if}
             {/each}
 
             {#if !game.isGameOver}
                 <div class="flex flex-col gap-2 shrink-0">
-                    <WordRow type="input">
-                        {#snippet spine()}<div class="text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 border-dashed text-slate-600">{game.history.length}</div>{/snippet}
+                    <WordRow type="input" historyIndex={game.history.length}>
                         {#snippet card()}<div class={isShaking ? 'animate-shake' : ''}><WordInput bind:value={guess} {validation} hasErrors={activeErrors.length > 0} onsubmit={handleSubmit} oninput={handleInput} characterClasses={getInputCharacterClasses} /></div>{/snippet}
                     </WordRow>
                     {#if activeErrors.length > 0}
@@ -287,28 +282,14 @@
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class={game.isGameOver ? 'cursor-pointer group/goal active:scale-[0.98] transition-all' : ''} onclick={() => game.isGameOver && successDialog.showModal()}>
-            <WordRow type="destination">
-                {#snippet spine()}
-                    <div class="w-6 h-6 relative flex items-center justify-center">
-                        {#if game.isGameOver}
-                            <div class="absolute w-8 h-8 bg-emerald-400/20 blur-md rounded-full animate-pulse"></div>
-                        {/if}
-                        <div class="relative z-10">
-                            <TreasureChest open={game.isGameOver} />
-                        </div>
-                    </div>{/snippet}
+            <WordRow type="destination" gameOver={game.isGameOver}>
                 {#snippet card()}
-                    <div class="relative">
-                        {#if game.isGameOver}
-                            <div class="absolute -inset-0.5 bg-emerald-500/10 blur rounded-2xl animate-pulse"></div>
-                        {/if}
-                        <JourneyTile word={game.finishWord} isGoal type={game.isGameOver ? game.history[game.history.length - 1].type : undefined} flash={flashWords.includes(game.finishWord)} />
-                    </div>{/snippet}
-                {#snippet side()}
-                    {#if game.isGameOver}
-                        {@const last = game.history[game.history.length - 1]}
-                        <Tooltip title="Score Breakdown">{#snippet children()}<span class="text-sm font-black text-slate-100 group-hover/row:text-white transition-colors cursor-help">+{last.moveScore}</span>{/snippet}{#snippet content()}<div class="space-y-3 min-w-[160px]"><div class="flex justify-between items-center text-[12px]"><span class="text-slate-400 font-bold uppercase tracking-widest">Base Move</span><span class="font-mono font-black text-white">100</span></div><div class="flex justify-between items-center text-[12px] text-emerald-400"><span class="italic font-bold">Rarity Bonus</span><span class="font-mono font-black">-{100 - (last.moveScore || 0)}</span></div><div class="flex justify-between items-center font-black mt-4 pt-4 border-t-2 border-slate-800 text-lg"><span class="uppercase tracking-tighter">TOTAL</span><span class="text-white font-mono">{last.moveScore}</span></div></div>{/snippet}</Tooltip>
-                    {/if}
+                  <div class="relative">
+                      {#if game.isGameOver}
+                          <div class="absolute -inset-0.5 bg-emerald-500/10 blur rounded-2xl animate-pulse"></div>
+                      {/if}
+                      <JourneyTile word={game.finishWord} isGoal type={game.isGameOver ? game.history[game.history.length - 1].type : undefined} flash={flashWords.includes(game.finishWord)} />
+                  </div>
                 {/snippet}
             </WordRow>
         </div>
