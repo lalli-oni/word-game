@@ -1,3 +1,4 @@
+<!-- NOTE (LTJ): JourneyTile inside WordRow seems weird -->
 <script lang="ts">
   type Props = {
     word: string;

@@ -31,13 +31,13 @@
 
 <div class="flex items-center gap-3 w-full group/row {className}">
     <!-- 1. LEFT INDICATOR (SPINE) -->
-    <div class="w-12 shrink-0 flex items-center justify-center h-16 relative">
+    <div class="w-12 h-16 shrink-0 flex items-center justify-center relative">
       {#if type === 'origin'}
         <div class="w-6 h-6 rounded-full bg-slate-400 shadow-[0_0_10px_rgba(255,255,255,0.4)]"></div>
       {:else if type === 'history'}
-        <div class="text-[10px] font-black text-slate-400 bg-slate-800 w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 shadow-lg">{(historyIndex || 0) + 1}</div>
+        <div class="w-6 h-6 text-[10px] font-black text-slate-400 flex items-center justify-center bg-slate-800 rounded-full border border-slate-700 shadow-lg">{(historyIndex || 0) + 1}</div>
       {:else if type === 'input'}
-        <div class="text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full border border-slate-700 border-dashed text-slate-600">{historyIndex}</div>
+        <div class="w-6 h-6 text-[10px] font-black text-slate-600 flex items-center justify-center rounded-full border border-slate-700 border-dashed">{historyIndex}</div>
       {:else if type === 'destination'}
         <div class="w-6 h-6 relative flex items-center justify-center">
           {#if gameOver}
@@ -60,7 +60,7 @@
     <!-- 3. RIGHT CONTENT (SCORE) -->
     <div class="w-12 shrink-0 flex items-center justify-center h-16">
         {#if type === 'origin'}
-          <span class="text-sm font-black text-slate-400">+0</span>
+          <span class="text-sm font-black text-slate-400">0</span>
         {:else if type === 'history' && move}
           <Tooltip title="Score Breakdown">
             {#snippet children()}<span class="text-sm font-black text-slate-100 group-hover/row:text-white transition-colors cursor-help">+{move.moveScore}</span>{/snippet}
