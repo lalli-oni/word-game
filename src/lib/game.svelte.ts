@@ -1,25 +1,7 @@
 import { type Journey } from './journeys';
 import { dictionaryService } from './dictionary.svelte';
 import { calculateObscurity, getLetterDifferences, isAnagram } from './word-utils';
-
-export type ConnectionType = 'initial' | 'letter' | 'synonym' | 'antonym' | 'anagram' | 'unknown';
-
-export interface Move {
-  word: string;
-  type: ConnectionType;
-  previousWord?: string;
-  timestamp: number;
-  obscurity?: number;
-  moveScore?: number;
-}
-
-export interface ValidationResult {
-  isValid: boolean;
-  type: ConnectionType;
-  errors: string[];
-  diffCount?: number;
-  obscurity?: number;
-}
+import type { ActionType, JourneyStep, ValidationResult } from './types';
 
 export interface JourneyResult {
     journeyId: string;
@@ -36,7 +18,9 @@ export class GameEngine {
   startWord = $state('COLD');
   finishWord = $state('WARM');
   currentWord = $state('COLD');
-  history = $state<Move[]>([{ word: 'COLD', type: 'initial', timestamp: Date.now(), obscurity: 0, moveScore: 0 }]);
+  history = $state<JourneyStep[]>([
+      { type: 'origin', word: 'COLD', timestamp: Date.now(), obscurity: 0 }
+  ]);
   isGameOver = $state(false);
   score = $state(0);
   isSolving = $state(false);
@@ -126,7 +110,7 @@ export class GameEngine {
           this.startWord = urlStart.toUpperCase();
           this.finishWord = urlEnd.toUpperCase();
           this.currentWord = this.startWord;
-          this.history = [{ word: this.startWord, type: 'initial', timestamp: Date.now(), obscurity: 0, moveScore: 0 }];
+          this.history = [{ type: 'origin', word: this.startWord, timestamp: Date.now(), obscurity: 0 }];
           this.isGameOver = false;
           this.score = 0;
           this.currentJourneyId = 'shared';
@@ -189,7 +173,7 @@ export class GameEngine {
       this.startWord = start;
       this.finishWord = journey.finishWord.toUpperCase();
       this.currentWord = start;
-      this.history = [{ word: start, type: 'initial', timestamp: Date.now(), obscurity: 0, moveScore: 0 }];
+      this.history = [{ type: 'origin', word: start, timestamp: Date.now(), obscurity: 0 }];
       this.isGameOver = false;
       this.score = 0;
       this.currentJourneyId = journey.id;
@@ -305,7 +289,7 @@ export class GameEngine {
 
   reset() {
       this.currentWord = this.startWord;
-      this.history = [{ word: this.startWord, type: 'initial', timestamp: Date.now(), obscurity: 0, moveScore: 0 }];
+      this.history = [{ type: 'origin', word: this.startWord, timestamp: Date.now(), obscurity: 0 }];
       this.isGameOver = false;
       this.score = 0;
       this.#refreshSemanticMoves(this.startWord);
@@ -318,11 +302,11 @@ export class GameEngine {
 
   async validateMove(guess: string): Promise<ValidationResult> {
       const word = guess.toUpperCase();
-      if (!word || word.length < 2) return { isValid: false, type: 'unknown', errors: [] };
-      if (this.isGameOver) return { isValid: false, type: 'unknown', errors: ['Game is over'] };
+      if (!word || word.length < 2) return { isValid: false, errors: [] };
+      if (this.isGameOver) return { isValid: false, errors: ['Game is over'] };
       
       if (this.history.some(m => m.word === word)) {
-          return { isValid: false, type: 'unknown', errors: [`"${word}" has already been used.`] };
+          return { isValid: false, errors: [`"${word}" has already been used.`] };
       }
 
       const prevWord = this.currentWord;
@@ -339,19 +323,19 @@ export class GameEngine {
       const obscurity = entry ? calculateObscurity(entry.rank) : 10;
 
       if (diffCount === 1 && prevWord.length === word.length && isVisible) {
-          return { isValid: true, type: 'letter', errors: [], obscurity };
+          return { isValid: true, action: 'morph', errors: [], obscurity };
       }
 
       if (isAnagram(prevWord, word) && isVisible) {
-          return { isValid: true, type: 'anagram', errors: [], obscurity };
+          return { isValid: true, action: 'anagram', errors: [], obscurity };
       }
 
       const wordLower = word.toLowerCase();
       if (isVisible && this.#validSemanticMoves.synonyms.includes(wordLower)) {
-          return { isValid: true, type: 'synonym', errors: [], obscurity };
+          return { isValid: true, action: 'synonym', errors: [], obscurity };
       }
       if (isVisible && this.#validSemanticMoves.antonyms.includes(wordLower)) {
-          return { isValid: true, type: 'antonym', errors: [], obscurity };
+          return { isValid: true, action: 'antonym', errors: [], obscurity };
       }
 
       if (prevWord.length !== word.length) {
@@ -366,7 +350,6 @@ export class GameEngine {
 
       return { 
           isValid: false, 
-          type: 'unknown', 
           errors, 
           diffCount: (isVisible && prevWord.length === word.length) ? diffCount : undefined,
           obscurity
@@ -376,7 +359,7 @@ export class GameEngine {
   async makeMove(guess: string) {
       const word = guess.toUpperCase();
       const validation = await this.validateMove(guess);
-      if (!validation.isValid) return;
+      if (!validation.isValid || !validation.action) return;
 
       const prev = this.currentWord;
       const moveScore = this.calculateMoveScore(validation.obscurity || 0);
@@ -384,14 +367,26 @@ export class GameEngine {
       this.currentWord = word;
       const isGoal = (word === this.finishWord);
 
-      this.history.push({ 
-          word, 
-          type: validation.type, 
-          previousWord: prev, 
-          timestamp: Date.now(),
-          obscurity: validation.obscurity,
-          moveScore
-      });
+      if (isGoal) {
+          this.history.push({
+              type: 'destination',
+              word,
+              action: validation.action,
+              timestamp: Date.now(),
+              obscurity: validation.obscurity || 0,
+              score: moveScore,
+              isReached: true
+          });
+      } else {
+          this.history.push({ 
+              type: 'waypoint',
+              word, 
+              action: validation.action,
+              timestamp: Date.now(),
+              obscurity: validation.obscurity || 0,
+              score: moveScore
+          });
+      }
       
       this.isGameOver = isGoal;
       this.score += moveScore;
