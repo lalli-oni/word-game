@@ -1,9 +1,9 @@
 <script lang="ts">
+  import './app.css';
+  
   import { game } from './lib/game.svelte';
   import { dictionaryService } from './lib/dictionary.svelte';
-  import { errorService } from './lib/error.svelte';
-  import { calculateObscurity } from './lib/word-utils';
-  import type { ValidationResult, ActionType, JourneyStep } from './lib/types';
+  import type { ValidationResult, ActionType } from './lib/types';
   
   // Components
   import GameHeader from './lib/components/GameHeader.svelte';
@@ -20,7 +20,8 @@
   import ConfirmDialog from './lib/components/dialogs/ConfirmDialog.svelte';
   import SuccessDialog from './lib/components/dialogs/SuccessDialog.svelte';
   
-  import './app.css';
+  import { getObscurityColor } from './lib/word-utils';
+  import { shareResult } from './lib/social';
 
   // Local UI State
   let guess = $state('');
@@ -118,14 +119,6 @@
       }
   }
 
-  function shareResult() {
-      const typeEmojis = { morph: '🟦', synonym: '🟪', antonym: '🟧', anagram: '🟫' };
-      const pathString = game.history.map(m => m.type !== 'origin' && m.action ? typeEmojis[m.action] : '⬜').join('');
-      const text = `Word Journey: ${game.startWord} ➔ ${game.finishWord}\nScore: ${game.score}\nSteps: ${game.history.length - 1}\nPath: ${pathString}\n\n${window.location.origin}${window.location.pathname}?s=${game.startWord.toLowerCase()}&e=${game.finishWord.toLowerCase()}`;
-      navigator.clipboard.writeText(text);
-      showSharedToast = true; setTimeout(() => showSharedToast = false, 3000);
-  }
-
   function handleScroll() {
       if (!scrollContainer) return;
       showTopIndicator = scrollContainer.scrollTop > 10;
@@ -133,16 +126,11 @@
   }
 
   $effect(() => { handleScroll(); if (game.startWord) guess = ''; });
-
-  function getObscurityLabel(val: number) { if (val <= 1) return 'Common'; if (val <= 3) return 'Typical'; if (val <= 6) return 'Rare'; return 'Obscure'; }
-  function getObscurityColor(val: number) { if (val <= 1) return 'text-emerald-400'; if (val <= 3) return 'text-blue-400'; if (val <= 6) return 'text-purple-400'; return 'text-pink-400'; }
 </script>
 
 <svelte:window onkeydown={handleKeydown} onmousemove={(e) => { mouseX = e.clientX; mouseY = e.clientY; }} />
 
 <HydrationOverlay isPriorityLoaded={dictionaryService.isPriorityLoaded} />
-
-{#if showSharedToast}<div class="toast-shared animate-in slide-in-from-top-4 duration-300">Copied to Clipboard!</div>{/if}
 
 {#if activeObscurity !== null}
     <div class="obscurity-tooltip" style="left: {mouseX + 15}px; top: {mouseY + 15}px">
@@ -159,6 +147,7 @@
     onConfirmNewJourney={() => confirmAction('Abandon Journey?', 'Start a new mysterious path.', 'START NEW', 'STAY ON JOURNEY', () => game.loadRandomJourney())}
     {showRandomConfig}
     onToggleRandomConfig={(v) => showRandomConfig = v}
+    isGameOver={game.isGameOver}
   />
 
   <GameLegend />
@@ -182,8 +171,14 @@
                             {#snippet children()}<span class="score-pill">+{step.score}</span>{/snippet}
                             {#snippet content()}
                                 <div class="score-breakdown">
-                                    <div class="breakdown-row"><span class="label">Base</span><span class="val">100</span></div>
-                                    <div class="breakdown-row text-emerald-400"><span class="label italic">Rarity Bonus</span><span class="val">-{100 - (step.score || 0)}</span></div>
+                                    <div class="breakdown-row">
+                                      <span class="label">Base</span>
+                                      <span class="val">100</span>
+                                    </div>
+                                    <div class="breakdown-row text-emerald-400 {getObscurityColor(step.obscurity)}">
+                                      <span class="label italic">Rarity Bonus</span>
+                                      <span class="val">-{100 - (step.score || 0)}</span>
+                                    </div>
                                     <div class="total-row"><span>TOTAL</span><span class="val">{step.score}</span></div>
                                 </div>
                             {/snippet}
@@ -232,12 +227,6 @@
         {/if}
     </div>
   </main>
-
-  <footer class="app-footer">
-    {#if game.isGameOver}
-        <Button variant="success" onclick={shareResult} class="w-full uppercase tracking-widest font-black italic">SHARE YOUR JOURNEY</Button>
-    {/if}
-  </footer>
 </div>
 
 <JourneyDialog show={showJourneyDialog} onClose={() => showJourneyDialog = false} onSelect={selectJourney} />
@@ -256,14 +245,14 @@
     onClose={() => showSuccessDialog = false} 
     onRetry={() => { game.reset(); showSuccessDialog = false; }} 
     onNewMap={() => { showSuccessDialog = false; showJourneyDialog = true; }} 
-    onShare={shareResult} 
+    onShare={() => shareResult(game)} 
 />
 
 <style>
   @reference "./app.css";
 
   .app-layout {
-    @apply fixed inset-0 bg-slate-900 text-white flex flex-col items-center overflow-hidden h-[100dvh];
+    @apply fixed inset-0 bg-slate-900 text-white flex flex-col items-center overflow-hidden h-dvh;
   }
 
   .game-board {
@@ -274,16 +263,12 @@
     @apply flex-1 overflow-y-auto py-4 scroll-smooth flex flex-col;
   }
 
-  .app-footer {
-    @apply flex-none w-full max-w-lg px-4 pb-8;
-  }
-
   .toast-shared {
-    @apply fixed top-8 left-1/2 -translate-x-1/2 z-[200] bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs shadow-2xl;
+    @apply fixed top-8 left-1/2 -translate-x-1/2 z-200 bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs shadow-2xl;
   }
 
   .obscurity-tooltip {
-    @apply fixed pointer-events-none z-[110] bg-slate-800/90 border-2 border-slate-700 p-2 px-3 rounded-xl shadow-2xl backdrop-blur-md flex flex-col items-center;
+    @apply fixed pointer-events-none z-110 bg-slate-800/90 border-2 border-slate-700 p-2 px-3 rounded-xl shadow-2xl backdrop-blur-md flex flex-col items-center;
   }
 
   .score-pill {
@@ -291,7 +276,7 @@
   }
 
   .score-breakdown {
-    @apply space-y-3 min-w-[160px];
+    @apply space-y-3 min-w-40;
   }
 
   .breakdown-row {

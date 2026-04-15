@@ -251,7 +251,11 @@ class DictionaryService {
               const entry = await this.getEntry(current);
               if (!entry) continue;
 
-              const neighbors = new Set([...entry.synonyms, ...entry.antonyms]);
+              // Only consider synonyms/antonyms of the same length
+              const neighbors = new Set<string>();
+              [...entry.synonyms, ...entry.antonyms].forEach(w => {
+                  if (w.length === current.length) neighbors.add(w);
+              });
               
               if (entry.neighbors) {
                   entry.neighbors.forEach(n => neighbors.add(n));

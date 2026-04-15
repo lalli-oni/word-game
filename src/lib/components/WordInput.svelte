@@ -73,7 +73,7 @@
         bind:value 
         oninput={() => { value = value.toUpperCase().slice(0, 20); oninput(); }}
         placeholder="NEXT WORD..." 
-        class="min-w-0 flex-1 bg-transparent focus:outline-none px-6 text-2xl font-mono uppercase tracking-[0.1em] font-black placeholder:text-slate-400/60 text-transparent caret-white selection:bg-blue-500/30" 
+        class="min-w-0 flex-1 bg-transparent focus:outline-none px-6 text-2xl font-mono uppercase tracking-widest font-black placeholder:text-slate-400/60 text-transparent caret-white selection:bg-blue-500/30" 
         maxlength="20"
         autofocus
     />

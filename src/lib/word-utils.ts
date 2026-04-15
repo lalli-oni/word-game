@@ -12,6 +12,20 @@ export function calculateObscurity(rank: number): number {
   return 10;
 }
 
+export function getObscurityColor(val: number) {
+	if (val <= 1) return 'text-emerald-400';
+	if (val <= 3) return 'text-blue-400';
+	if (val <= 6) return 'text-purple-400';
+	return 'text-pink-400';
+}
+
+export function getObscurityLabel(val: number) {
+  if (val <= 1) return 'Common';
+  if (val <= 3) return 'Typical';
+  if (val <= 6) return 'Rare';
+  return 'Obscure';
+}
+
 export function isAnagram(w1: string, w2: string): boolean {
   if (w1.length !== w2.length || w1.toUpperCase() === w2.toUpperCase()) return false;
   return w1.toUpperCase().split('').sort().join('') === w2.toUpperCase().split('').sort().join('');

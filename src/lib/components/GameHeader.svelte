@@ -1,5 +1,7 @@
 <script lang="ts">
   import { game } from '../game.svelte';
+  import { shareResult } from '../social';
+  import { getObscurityColor, getObscurityLabel } from '../word-utils';
   import Button from './Button.svelte';
 
   interface Props {
@@ -9,19 +11,21 @@
     onConfirmNewJourney: () => void;
     showRandomConfig: boolean;
     onToggleRandomConfig: (val: boolean) => void;
+    isGameOver: boolean;
   }
 
   let { 
-    onOpenLevels, 
-    onOpenSettings, 
-    onConfirmWand, 
-    onConfirmNewJourney, 
-    showRandomConfig, 
-    onToggleRandomConfig 
+    onOpenLevels,
+    onOpenSettings,
+    onConfirmWand,
+    onConfirmNewJourney,
+    showRandomConfig,
+    onToggleRandomConfig,
+    isGameOver
   }: Props = $props();
 
-  function getObscurityLabel(val: number) { if (val <= 1) return 'Common'; if (val <= 3) return 'Typical'; if (val <= 6) return 'Rare'; return 'Obscure'; }
-  function getObscurityColor(val: number) { if (val <= 1) return 'text-emerald-400'; if (val <= 3) return 'text-blue-400'; if (val <= 6) return 'text-purple-400'; return 'text-pink-400'; }
+
+  let showSharedToast = $state(false);
 </script>
 
 <header class="game-header">
@@ -38,6 +42,7 @@
       <Button variant="secondary" size="icon" onclick={onOpenLevels} tooltip="Choose Journey" disabled={game.isGenerating || game.isSolving} class="h-full"><span>🗺️</span></Button>
       <Button variant="secondary" size="icon" onclick={onConfirmWand} loading={game.isSolving} tooltip="Magic Path" disabled={game.isGenerating || game.isGameOver} class="h-full"><span>🪄</span></Button>
       
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="random-config-wrapper group" onmouseenter={() => onToggleRandomConfig(true)} onmouseleave={() => onToggleRandomConfig(false)}>
           <div class="random-trigger" class:is-expanded={showRandomConfig}>
               <button onclick={onConfirmNewJourney} disabled={game.isGenerating || game.isSolving} class="random-btn">
@@ -68,10 +73,25 @@
     </div>
     
     <div class="score-display">
+      {#if game.isGameOver}
+          <Button
+            variant="success"
+            onclick={() => {
+              shareResult(game);
+              showSharedToast = true;
+              setTimeout(() => showSharedToast = false, 3000);
+            }}
+            class="w-full uppercase tracking-widest font-black italic"
+          >
+            SHARE YOUR JOURNEY
+          </Button>
+      {/if}
       <div class="score-value">{game.score}</div>
       <span class="trophy">🏆</span>
     </div>
   </div>
+
+  {#if showSharedToast}<div class="toast-shared animate-in slide-in-from-top-4 duration-300">Copied to Clipboard!</div>{/if}
 </header>
 
 <style>

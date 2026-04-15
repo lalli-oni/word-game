@@ -1,7 +1,7 @@
 import { type Journey } from './journeys';
 import { dictionaryService } from './dictionary.svelte';
 import { calculateObscurity, getLetterDifferences, isAnagram } from './word-utils';
-import type { ActionType, JourneyStep, ValidationResult } from './types';
+import type { JourneyStep, ValidationResult } from './types';
 
 export interface JourneyResult {
     journeyId: string;
@@ -322,7 +322,15 @@ export class GameEngine {
 
       const obscurity = entry ? calculateObscurity(entry.rank) : 10;
 
-      if (diffCount === 1 && prevWord.length === word.length && isVisible) {
+      if (prevWord.length !== word.length) {
+          return { 
+              isValid: false, 
+              errors: [`Word length must match the current word ("${prevWord}" is ${prevWord.length} letters).`],
+              obscurity
+          };
+      }
+
+      if (diffCount === 1 && isVisible) {
           return { isValid: true, action: 'morph', errors: [], obscurity };
       }
 
@@ -338,14 +346,8 @@ export class GameEngine {
           return { isValid: true, action: 'antonym', errors: [], obscurity };
       }
 
-      if (prevWord.length !== word.length) {
-          if (isVisible) errors.push('Word length must match for a Morph or Anagram.');
-      } else if (diffCount > 1) {
-          if (isVisible) errors.push(`A Morph only allows 1 letter change (you changed ${diffCount}).`);
-      }
-
       if (isVisible) {
-          errors.push(`"${word}" is not a known synonym or antonym of "${prevWord}".`);
+          errors.push(`"${word}" is not a known connection from "${prevWord}".`);
       }
 
       return { 
