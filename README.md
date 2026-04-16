@@ -18,6 +18,17 @@ This game is designed to challenge both the linguistic and logical parts of the 
 2. `npm run dev`
 3. Open `http://localhost:5173` (or the port shown in your terminal).
 
+## Testing
+The test setup is intentionally small right now. We currently have low-level unit coverage around the game engine, focused on move validation rules and the async turn-flow edges that are easiest to regress.
+
+- Run the unit suite with `npm test`
+- Run type checks with `npm run check`
+
+### Testing Strategy
+We are starting at the engine and service layer because that is where rule correctness lives: move legality, duplicate prevention, profanity filtering, and turn sequencing. That gives us fast feedback on the core puzzle logic before we expand outward.
+
+The next step is broader low-level coverage for dictionary and solver behavior so generation and auto-solve stay aligned with live move validation. After that, we can add a small number of end-to-end tests to cover the full browser flow and verify that the UI wiring matches the engine guarantees.
+
 ## Tech Stack
 - **Frontend**: Svelte 5 + TypeScript
 - **Styling**: Tailwind CSS 4
