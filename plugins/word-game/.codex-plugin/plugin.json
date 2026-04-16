@@ -1,0 +1,25 @@
+{
+  "name": "word-game",
+  "version": "0.1.0",
+  "description": "Repo-local Codex plugin that exposes the Word Connection development skill.",
+  "author": {
+    "name": "Word Connection"
+  },
+  "repository": "https://github.com/lalli-oni/word-game",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Word Game",
+    "shortDescription": "Repo-specific guidance for the Word Connection codebase.",
+    "longDescription": "Expose repo-local rules, architecture, and workflow guidance for working on the Word Connection project.",
+    "developerName": "Word Connection",
+    "category": "Games",
+    "capabilities": [
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Work on this repo using its architecture and game rules.",
+      "Modify game logic without violating offline-first validation.",
+      "Refactor the UI while keeping App.svelte presentation-focused."
+    ]
+  }
+}

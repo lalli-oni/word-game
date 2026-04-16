@@ -1,0 +1,20 @@
+{
+  "name": "word-game-repo",
+  "interface": {
+    "displayName": "Word Game Repo"
+  },
+  "plugins": [
+    {
+      "name": "word-game",
+      "source": {
+        "source": "local",
+        "path": "./plugins/word-game"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Games"
+    }
+  ]
+}

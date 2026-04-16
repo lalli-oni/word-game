@@ -1,0 +1,4 @@
+interface:
+  display_name: "Word Game"
+  short_description: "Repo-specific development rules for the Word Connection project."
+  default_prompt: "Work on the Word Connection repo using its game rules, architecture, and stack conventions."
