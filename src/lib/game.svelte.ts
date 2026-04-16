@@ -38,6 +38,7 @@ export class GameEngine {
   #allowProfanity = $state(false);
   #randomWordLength = $state(4);
   #randomMaxObscurity = $state(10);
+  #isApplyingMove = $state(false);
 
   get allowProfanity() { return this.#allowProfanity; }
   set allowProfanity(val: boolean) {
@@ -61,6 +62,8 @@ export class GameEngine {
   }
   
   #validSemanticMoves = $state<{ synonyms: string[], antonyms: string[] }>({ synonyms: [], antonyms: [] });
+  #semanticMovesWord = $state<string | null>(null);
+  #semanticMovesPromise: Promise<void> | null = null;
 
   constructor() {
       this.loadConfig();
@@ -149,11 +152,23 @@ export class GameEngine {
 
   async init() {
       await dictionaryService.init();
-      this.#refreshSemanticMoves(this.currentWord);
+      await this.#refreshSemanticMoves(this.currentWord);
       this.triggerPregenerate();
   }
 
   async #refreshSemanticMoves(word: string) {
+      const targetWord = word.toUpperCase();
+      if (this.#semanticMovesWord === targetWord) return;
+      if (this.#semanticMovesPromise) {
+          await this.#semanticMovesPromise;
+          if (this.#semanticMovesWord === targetWord) return;
+      }
+
+      this.#semanticMovesPromise = this.#loadSemanticMoves(targetWord);
+      await this.#semanticMovesPromise;
+  }
+
+  async #loadSemanticMoves(word: string) {
       console.log(`[Game] Refreshing semantic moves for: ${word}`);
       const entry = await dictionaryService.getEntry(word);
       if (entry) {
@@ -161,11 +176,14 @@ export class GameEngine {
               synonyms: entry.synonyms,
               antonyms: entry.antonyms
           };
+          this.#semanticMovesWord = word;
           console.log(`[Game] Loaded ${entry.synonyms.length} synonyms and ${entry.antonyms.length} antonyms.`);
       } else {
           console.warn(`[Game] No dictionary entry found for: ${word}`);
           this.#validSemanticMoves = { synonyms: [], antonyms: [] };
+          this.#semanticMovesWord = word;
       }
+      this.#semanticMovesPromise = null;
   }
 
   loadJourney(journey: Journey) {
@@ -178,6 +196,8 @@ export class GameEngine {
       this.score = 0;
       this.currentJourneyId = journey.id;
       this.#validSemanticMoves = { synonyms: [], antonyms: [] };
+      this.#semanticMovesWord = null;
+      this.#semanticMovesPromise = null;
       this.#refreshSemanticMoves(start);
       this.saveGameState();
       this.triggerPregenerate();
@@ -201,9 +221,14 @@ export class GameEngine {
           while (attempts < 50) {
               start = await dictionaryService.getRandomWord(this.#randomWordLength);
               finish = await dictionaryService.getRandomWord(this.#randomWordLength);
-              if (start === finish) continue;
+              if (start === finish) {
+                  attempts++;
+                  continue;
+              }
               
-              const path = await dictionaryService.findShortestPath(start, finish, 6);
+              const path = await dictionaryService.findShortestPath(start, finish, 6, {
+                  allowProfanity: this.#allowProfanity
+              });
               if (path && path.length >= 3) {
                   let difficulty: 'easy' | 'medium' | 'hard' = 'medium';
                   if (path.length <= 3) difficulty = 'easy';
@@ -270,7 +295,10 @@ export class GameEngine {
       this.isSolving = true;
 
       console.time('[Solver] Dijkstra');
-      const path = await dictionaryService.findShortestPath(this.currentWord, this.finishWord, 10);
+      const path = await dictionaryService.findShortestPath(this.currentWord, this.finishWord, 10, {
+          allowProfanity: this.#allowProfanity,
+          usedWords: this.history.map(step => step.word)
+      });
       console.timeEnd('[Solver] Dijkstra');
 
       if (!path) {
@@ -292,6 +320,9 @@ export class GameEngine {
       this.history = [{ type: 'origin', word: this.startWord, timestamp: Date.now(), obscurity: 0 }];
       this.isGameOver = false;
       this.score = 0;
+      this.#validSemanticMoves = { synonyms: [], antonyms: [] };
+      this.#semanticMovesWord = null;
+      this.#semanticMovesPromise = null;
       this.#refreshSemanticMoves(this.startWord);
       this.saveGameState();
   }
@@ -312,6 +343,8 @@ export class GameEngine {
       const prevWord = this.currentWord;
       const errors: string[] = [];
       const diffCount = getLetterDifferences(prevWord, word);
+
+      await this.#refreshSemanticMoves(prevWord);
       
       const entry = await dictionaryService.getEntry(word);
       const isVisible = entry && (this.#allowProfanity || !entry.tags.includes('profanity'));
@@ -358,51 +391,57 @@ export class GameEngine {
       };
   }
 
-  async makeMove(guess: string) {
-      const word = guess.toUpperCase();
-      const validation = await this.validateMove(guess);
-      if (!validation.isValid || !validation.action) return;
+  async makeMove(guess: string): Promise<boolean> {
+      if (this.#isApplyingMove) return false;
+      this.#isApplyingMove = true;
 
-      const prev = this.currentWord;
-      const moveScore = this.calculateMoveScore(validation.obscurity || 0);
-      
-      this.currentWord = word;
-      const isGoal = (word === this.finishWord);
+      try {
+          const word = guess.toUpperCase();
+          const validation = await this.validateMove(guess);
+          if (!validation.isValid || !validation.action) return false;
+          const moveScore = this.calculateMoveScore(validation.obscurity || 0);
+          
+          this.currentWord = word;
+          const isGoal = (word === this.finishWord);
 
-      if (isGoal) {
-          this.history.push({
-              type: 'destination',
-              word,
-              action: validation.action,
-              timestamp: Date.now(),
-              obscurity: validation.obscurity || 0,
-              score: moveScore,
-              isReached: true
-          });
-      } else {
-          this.history.push({ 
-              type: 'waypoint',
-              word, 
-              action: validation.action,
-              timestamp: Date.now(),
-              obscurity: validation.obscurity || 0,
-              score: moveScore
-          });
+          if (isGoal) {
+              this.history.push({
+                  type: 'destination',
+                  word,
+                  action: validation.action,
+                  timestamp: Date.now(),
+                  obscurity: validation.obscurity || 0,
+                  score: moveScore,
+                  isReached: true
+              });
+          } else {
+              this.history.push({ 
+                  type: 'waypoint',
+                  word, 
+                  action: validation.action,
+                  timestamp: Date.now(),
+                  obscurity: validation.obscurity || 0,
+                  score: moveScore
+              });
+          }
+          
+          this.isGameOver = isGoal;
+          this.score += moveScore;
+
+          if (this.isGameOver && this.currentJourneyId !== 'shared') {
+              this.saveCompleted(this.currentJourneyId, {
+                  journeyId: this.currentJourneyId,
+                  completedAt: Date.now(),
+                  score: this.score
+              });
+          }
+
+          await this.#refreshSemanticMoves(word);
+          this.saveGameState();
+          return true;
+      } finally {
+          this.#isApplyingMove = false;
       }
-      
-      this.isGameOver = isGoal;
-      this.score += moveScore;
-
-      if (this.isGameOver && this.currentJourneyId !== 'shared') {
-          this.saveCompleted(this.currentJourneyId, {
-              journeyId: this.currentJourneyId,
-              completedAt: Date.now(),
-              score: this.score
-          });
-      }
-
-      await this.#refreshSemanticMoves(word);
-      this.saveGameState();
   }
 }
 

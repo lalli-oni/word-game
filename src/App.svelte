@@ -73,7 +73,8 @@
     const result = await game.validateMove(guess);
     if (result.isValid) {
       const isGoal = guess.toUpperCase() === game.finishWord;
-      game.makeMove(guess.trim());
+      const applied = await game.makeMove(guess.trim());
+      if (!applied) return;
       guess = '';
       validation = { isValid: false, errors: [] };
       activeErrors = [];

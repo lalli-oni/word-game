@@ -12,7 +12,12 @@ export interface DictionaryEntry {
   neighbors?: string[];
 }
 
-class DictionaryService {
+export interface PathOptions {
+  allowProfanity?: boolean;
+  usedWords?: Iterable<string>;
+}
+
+export class DictionaryService {
   private dbName = 'WordConnectionDB';
   private dbVersion = 3;
   private db: IDBPDatabase | null = null;
@@ -220,13 +225,19 @@ class DictionaryService {
       return cursor?.value.word.toUpperCase() || 'COLD';
   }
 
-  async findShortestPath(start: string, end: string, maxSteps = 8): Promise<string[] | null> {
+  async findShortestPath(start: string, end: string, maxSteps = 8, options: PathOptions = {}): Promise<string[] | null> {
       try {
           if (!this.db) await this.init();
           
           start = start.toLowerCase();
           end = end.toLowerCase();
           if (start === end) return [start];
+
+          const allowProfanity = options.allowProfanity ?? false;
+          const usedWords = new Set(
+              Array.from(options.usedWords ?? [], word => word.toLowerCase())
+          );
+          usedWords.delete(start);
 
           let pq: { word: string, path: string[], score: number }[] = [{ word: start, path: [start], score: 0 }];
           const bestScores = new Map<string, number>();
@@ -268,8 +279,11 @@ class DictionaryService {
               }
 
               for (const neighbor of neighbors) {
+                  if (usedWords.has(neighbor)) continue;
+
                   const neighborEntry = await this.getEntry(neighbor);
                   if (!neighborEntry) continue;
+                  if (!allowProfanity && neighborEntry.tags.includes('profanity')) continue;
 
                   const obscurity = calculateObscurity(neighborEntry.rank);
                   const moveScore = Math.max(10, 100 - (obscurity * 8));
