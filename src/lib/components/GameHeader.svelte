@@ -25,7 +25,14 @@
   }: Props = $props();
 
 
+  import HintButton from './HintButton.svelte';
+  const HintControl = HintButton;
+
   let showSharedToast = $state(false);
+
+  function confirmSolve(cb: () => void) {
+    if (confirm('Reveal full solution? This cannot be undone for this run.')) cb();
+  }
 </script>
 
 <header class="game-header">
@@ -41,6 +48,8 @@
     <div class="button-group">
       <Button variant="secondary" size="icon" onclick={onOpenLevels} tooltip="Choose Journey" disabled={game.isGenerating || game.isSolving} class="h-full"><span>🗺️</span></Button>
       <Button variant="secondary" size="icon" onclick={onConfirmWand} loading={game.isSolving} tooltip="Magic Path" disabled={game.isGenerating || game.isGameOver} class="h-full"><span>🪄</span></Button>
+      <svelte:component this={HintControl} showSolveConfirm={(cb) => confirmSolve(cb)} />
+
       
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="random-config-wrapper group" onmouseenter={() => onToggleRandomConfig(true)} onmouseleave={() => onToggleRandomConfig(false)}>
