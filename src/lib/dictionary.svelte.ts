@@ -319,4 +319,31 @@ export class DictionaryService {
   }
 }
 
+  // Cached hint/full-solution support
+  private _cachedSolution: { key: string; path: string[] } | null = null;
+
+  private makeSolutionCacheKey(start: string, end: string, options: PathOptions = {}) {
+    const used = options.usedWords ? Array.from(options.usedWords as Iterable<string>).map(w => w.toLowerCase()).sort().join(',') : '';
+    return `${start.toLowerCase()}|${end.toLowerCase()}|${options.allowProfanity ? '1' : '0'}|${used}`;
+  }
+
+  async getFullSolution(start: string, end: string, options: PathOptions = {}): Promise<string[] | null> {
+    const key = this.makeSolutionCacheKey(start, end, options);
+    if (this._cachedSolution && this._cachedSolution.key === key) return this._cachedSolution.path;
+
+    const path = await this.findShortestPath(start, end, 8, options);
+    if (path) this._cachedSolution = { key, path };
+    return path;
+  }
+
+  async getHint(start: string, end: string, options: PathOptions = {}): Promise<string | null> {
+    const path = await this.getFullSolution(start, end, options);
+    if (!path || path.length < 2) return null;
+    return path[1];
+  }
+
+  invalidateCachedSolution() {
+    this._cachedSolution = null;
+  }
+
 export const dictionaryService = new DictionaryService();
