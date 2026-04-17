@@ -94,7 +94,7 @@
   {#if showSharedToast}<div class="toast-shared animate-in slide-in-from-top-4 duration-300">Copied to Clipboard!</div>{/if}
 </header>
 
-<style>
+<style lang="postcss">
   @reference "../../app.css";
 
   .game-header {

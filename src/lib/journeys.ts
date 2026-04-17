@@ -4,6 +4,7 @@ export interface Journey {
   startWord: string;
   finishWord: string;
   difficulty: 'easy' | 'medium' | 'hard';
+  optimalScore?: number;
   description?: string;
   tags?: string[];
 }
@@ -15,31 +16,35 @@ export const journeys: Journey[] = [
     startWord: 'COLD',
     finishWord: 'WARM',
     difficulty: 'easy',
+    optimalScore: 192,
     description: 'A simple start. Can you find a shortcut using an antonym?'
   },
   {
     id: 'fast-slow',
-    name: 'Quick Motion',
+    name: 'Delayed Motion',
     startWord: 'FAST',
-    finishWord: 'SLOW',
-    difficulty: 'easy',
-    description: 'A simple speed transition.'
+    finishWord: 'LATE',
+    difficulty: 'medium',
+    optimalScore: 200,
+    description: 'A speed change that takes more than one hop.'
   },
   {
     id: 'night-dawn',
     name: 'Break of Day',
     startWord: 'DARK',
-    finishWord: 'LIGHT',
-    difficulty: 'easy',
-    description: 'A simple transition from dark to light.'
+    finishWord: 'GLOW',
+    difficulty: 'medium',
+    optimalScore: 212,
+    description: 'A transition from darkness toward light.'
   },
   {
     id: 'love-hate',
     name: 'Emotional Pendulum',
     startWord: 'LOVE',
-    finishWord: 'HATE',
+    finishWord: 'CARE',
     difficulty: 'medium',
-    description: 'The distance between strong feelings.'
+    optimalScore: 208,
+    description: 'The distance between strong feelings and concern.'
   },
   {
     id: 'land-sea',
@@ -47,6 +52,7 @@ export const journeys: Journey[] = [
     startWord: 'LAND',
     finishWord: 'SHIP',
     difficulty: 'medium',
+    optimalScore: 292,
     description: 'Navigate from the ground to the ocean.'
   },
   {
@@ -55,31 +61,35 @@ export const journeys: Journey[] = [
     startWord: 'CAT',
     finishWord: 'DOG',
     difficulty: 'medium',
+    optimalScore: 176,
     description: 'The classic word ladder challenge.'
   },
   {
     id: 'work-play',
     name: 'The Daily Loop',
     startWord: 'WORK',
-    finishWord: 'PLAY',
+    finishWord: 'REST',
     difficulty: 'medium',
-    description: 'Find the path between professional and personal.'
+    optimalScore: 284,
+    description: 'Find the path between effort and recovery.'
   },
   {
     id: 'king-queen',
     name: 'Royal Decree',
     startWord: 'KING',
-    finishWord: 'QUEEN',
+    finishWord: 'DUKE',
     difficulty: 'medium',
-    description: 'Ascend the throne.'
+    optimalScore: 272,
+    description: 'Ascend the throne without taking the obvious route.'
   },
   {
     id: 'good-evil',
     name: 'Moral Compass',
     startWord: 'GOOD',
-    finishWord: 'EVIL',
+    finishWord: 'PURE',
     difficulty: 'hard',
-    description: 'Navigate the complex path of morality.'
+    optimalScore: 292,
+    description: 'Navigate the complex path of moral intent.'
   },
   {
     id: 'fire-ice',
@@ -87,6 +97,7 @@ export const journeys: Journey[] = [
     startWord: 'FIRE',
     finishWord: 'SNOW',
     difficulty: 'hard',
+    optimalScore: 332,
     description: 'From heat to freezing cold.'
   },
   {
@@ -95,15 +106,17 @@ export const journeys: Journey[] = [
     startWord: 'STAR',
     finishWord: 'MOON',
     difficulty: 'hard',
+    optimalScore: 284,
     description: 'Navigate the cosmic ladder.'
   },
   {
     id: 'life-death',
     name: 'The Great Cycle',
     startWord: 'LIFE',
-    finishWord: 'DEAD',
+    finishWord: 'SOUL',
     difficulty: 'hard',
-    description: 'Explore the journey of existence.'
+    optimalScore: 288,
+    description: 'Explore the journey of existence and meaning.'
   },
   {
     id: 'heart-brain',
@@ -111,17 +124,18 @@ export const journeys: Journey[] = [
     startWord: 'HEART',
     finishWord: 'BRAIN',
     difficulty: 'hard',
+    optimalScore: 396,
     description: 'Connect the two engines of the human experience.'
   },
-  // Profane scenarios
+  // Edgier scenarios
   {
     id: 'dirty-1',
     name: 'Urban Grime',
     startWord: 'CLEAN',
-    finishWord: 'SHIT',
+    finishWord: 'MESSY',
     difficulty: 'medium',
-    tags: ['profanity'],
-    description: 'A messy descent into the urban dictionary.'
+    optimalScore: 332,
+    description: 'A messy descent into disorder.'
   },
   {
     id: 'dirty-2',
@@ -130,6 +144,7 @@ export const journeys: Journey[] = [
     finishWord: 'DICK',
     difficulty: 'hard',
     tags: ['profanity'],
+    optimalScore: 184,
     description: 'From compliments to... something else.'
   },
   {
@@ -139,6 +154,7 @@ export const journeys: Journey[] = [
     finishWord: 'FUCK',
     difficulty: 'hard',
     tags: ['profanity'],
+    optimalScore: 308,
     description: 'The most direct path between frustrations.'
   }
 ];

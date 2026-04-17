@@ -12,8 +12,8 @@
 
   let { children, title, content, position = 'top', class: className = '', visible = $bindable(false) }: Props = $props();
 
-  let triggerEl: HTMLElement;
-  let tooltipEl: HTMLElement;
+  let triggerEl = $state<HTMLElement>();
+  let tooltipEl = $state<HTMLElement>();
   let coords = $state({ top: 0, left: 0 });
 
   function updatePosition() {

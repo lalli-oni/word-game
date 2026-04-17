@@ -317,7 +317,6 @@ export class DictionaryService {
       const index = tx.objectStore('dictionary').index('by-length');
       return await index.getAllKeys(len) as string[];
   }
-}
 
   // Cached hint/full-solution support
   private _cachedSolution: { key: string; path: string[] } | null = null;
@@ -345,5 +344,8 @@ export class DictionaryService {
   invalidateCachedSolution() {
     this._cachedSolution = null;
   }
+}
+
+export const dictionaryService = new DictionaryService();
 
 export const dictionaryService = new DictionaryService();
