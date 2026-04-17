@@ -81,6 +81,7 @@ export class GameEngine {
   #allowProfanity = $state(false);
   #randomWordLength = $state(4);
   #randomMaxObscurity = $state(10);
+  #hintPenalty = $state<{ enabled: boolean; points: number }>({ enabled: false, points: 10 });
   #isApplyingMove = $state(false);
 
   // Hint/cache storage (moved from DictionaryService)
@@ -106,7 +107,19 @@ export class GameEngine {
       this.saveConfig();
       this.triggerPregenerate();
   }
-  
+
+  get hintPenaltyEnabled() { return this.#hintPenalty.enabled; }
+  set hintPenaltyEnabled(val: boolean) {
+      this.#hintPenalty = { ...this.#hintPenalty, enabled: !!val };
+      this.saveConfig();
+  }
+
+  get hintPenaltyPoints() { return this.#hintPenalty.points; }
+  set hintPenaltyPoints(val: number) {
+      this.#hintPenalty = { ...this.#hintPenalty, points: Number(val) };
+      this.saveConfig();
+  }
+
   #validSemanticMoves = $state<{ synonyms: string[], antonyms: string[] }>({ synonyms: [], antonyms: [] });
   #semanticMovesWord = $state<string | null>(null);
   #semanticMovesPromise: Promise<void> | null = null;
@@ -126,6 +139,10 @@ export class GameEngine {
               this.#allowProfanity = parsed.allowProfanity ?? false;
               this.#randomWordLength = parsed.randomWordLength ?? 4;
               this.#randomMaxObscurity = parsed.randomMaxObscurity ?? 10;
+              this.#hintPenalty = {
+                enabled: parsed.hintPenaltyEnabled ?? false,
+                points: parsed.hintPenaltyPoints ?? 10
+              };
           }
       } catch (e) { console.error('Failed to load config', e); }
   }
@@ -134,7 +151,9 @@ export class GameEngine {
       localStorage.setItem(CONFIG_KEY, JSON.stringify({
           allowProfanity: this.#allowProfanity,
           randomWordLength: this.#randomWordLength,
-          randomMaxObscurity: this.#randomMaxObscurity
+          randomMaxObscurity: this.#randomMaxObscurity,
+          hintPenaltyEnabled: this.#hintPenalty.enabled,
+          hintPenaltyPoints: this.#hintPenalty.points
       }));
   }
 

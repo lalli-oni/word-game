@@ -41,6 +41,19 @@
           <div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
         </div>
       </label>
+
+      <label class="flex items-center justify-between cursor-pointer group">
+        <span class="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">Enable Hint Penalty</span>
+        <div class="relative inline-flex items-center">
+          <input type="checkbox" bind:checked={game.hintPenaltyEnabled} class="sr-only peer">
+          <div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+        </div>
+      </label>
+
+      <div class="flex items-center justify-between">
+        <span class="text-sm font-bold text-slate-300">Hint Penalty Points</span>
+        <input type="number" min="0" class="w-20 text-right bg-slate-700 border border-slate-600 rounded p-1" bind:value={game.hintPenaltyPoints} disabled={!game.hintPenaltyEnabled} />
+      </div>
     </div>
   </div>
 </dialog>
