@@ -403,12 +403,12 @@ export class GameEngine {
           // Auto-invalidation: if a cached canonical solution exists but the player's chosen move deviates
           try {
             const options = { allowProfanity: this.#allowProfanity, usedWords: this.history.map(step => step.word) };
-            const hasCached = dictionaryService.hasCachedSolution(this.currentWord, this.finishWord, options);
-            if (hasCached) {
+            const hasCached = typeof dictionaryService.hasCachedSolution === 'function' && dictionaryService.hasCachedSolution(this.currentWord, this.finishWord, options);
+            if (hasCached && typeof dictionaryService.getFullSolution === 'function') {
               const solution = await dictionaryService.getFullSolution(this.currentWord, this.finishWord, options);
               if (solution && solution.length >= 2 && solution[1].toUpperCase() !== word) {
                 // Player deviated from previously computed canonical path — invalidate cache
-                dictionaryService.invalidateCachedSolution();
+                if (typeof dictionaryService.invalidateCachedSolution === 'function') dictionaryService.invalidateCachedSolution();
               }
             }
           } catch (e) {
