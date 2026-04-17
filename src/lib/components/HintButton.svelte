@@ -1,6 +1,5 @@
 <script lang="ts">
   import Button from './Button.svelte';
-  import { dictionaryService } from '../dictionary.svelte';
   import { game } from '../game.svelte';
 
   export let showSolveConfirm: (cb: () => void) => void;
@@ -12,7 +11,7 @@
     try {
       const start = game.currentWord;
       const end = game.finishWord;
-      const hint = await dictionaryService.getHint(start, end, { allowProfanity: game.allowProfanity, usedWords: game.history });
+      const hint = await game.getHint(start, end, { allowProfanity: game.allowProfanity, usedWords: game.history.map(s => s.word) });
       if (hint) {
         // Pre-fill the input or show suggestion (simple: set a reactive suggestedWord)
         game.suggestedWord = hint.toUpperCase();
@@ -32,7 +31,7 @@
       try {
         const start = game.currentWord;
         const end = game.finishWord;
-        const solution = await dictionaryService.getFullSolution(start, end, { allowProfanity: game.allowProfanity, usedWords: game.history });
+        const solution = await game.getFullSolution(start, end, { allowProfanity: game.allowProfanity, usedWords: game.history.map(s => s.word) });
         if (solution) {
           game.revealSolution(solution.map(w => w.toUpperCase()));
         } else {

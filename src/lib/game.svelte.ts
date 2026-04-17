@@ -3,6 +3,45 @@ import { dictionaryService } from './dictionary.svelte';
 import { calculateObscurity, getLetterDifferences, isAnagram } from './word-utils';
 import type { JourneyStep, ValidationResult } from './types';
 
+// Public API Types
+export type HintOptions = {
+    allowProfanity?: boolean;
+    usedWords?: string[];
+};
+
+export type Solution = string[];
+
+export interface GameAPI {
+    // Game state
+    startWord: string;
+    finishWord: string;
+    currentWord: string;
+    history: JourneyStep[];
+    isGameOver: boolean;
+    score: number;
+    isSolving: boolean;
+    isGenerating: boolean;
+    currentJourneyId: string;
+    completedJourneys: Record<string, JourneyResult>;
+    
+    // Config accessors
+    allowProfanity: boolean;
+    randomWordLength: number;
+    randomMaxObscurity: number;
+    
+    // Methods
+    loadJourney(journey: Journey): void;
+    loadRandomJourney(): Promise<void>;
+    reset(): void;
+    validateMove(guess: string): Promise<ValidationResult>;
+    makeMove(guess: string): Promise<boolean>;
+    solve(): Promise<void>;
+    calculateMoveScore(obscurity: number): number;
+    getHint(start: string, end: string, options?: HintOptions): Promise<string | null>;
+    getFullSolution(start: string, end: string, options?: HintOptions): Promise<Solution | null>;
+    revealSolution(solution: Solution): Promise<void>;
+}
+
 export interface JourneyResult {
     journeyId: string;
     completedAt: number;
@@ -27,9 +66,13 @@ export class GameEngine {
   isGenerating = $state(false);
   currentJourneyId = $state('tutorial');
   
+  // UI helpers
+  suggestedWord = $state<string | null>(null);
+  toastMessage = $state('');
+
   // Stats
   completedJourneys = $state<Record<string, JourneyResult>>({});
-  
+
   // Pre-generation
   #pregeneratedJourney = $state<Journey | null>(null);
   #isPregenerating = $state(false);
@@ -39,6 +82,9 @@ export class GameEngine {
   #randomWordLength = $state(4);
   #randomMaxObscurity = $state(10);
   #isApplyingMove = $state(false);
+
+  // Hint/cache storage (moved from DictionaryService)
+  #_cachedSolution: { key: string; path: string[] } | null = null;
 
   get allowProfanity() { return this.#allowProfanity; }
   set allowProfanity(val: boolean) {
@@ -403,15 +449,12 @@ export class GameEngine {
           // Auto-invalidation: if a cached canonical solution exists but the player's chosen move deviates
           try {
             const options = { allowProfanity: this.#allowProfanity, usedWords: this.history.map(step => step.word) };
-            const hasCached = typeof dictionaryService.hasCachedSolution === 'function' && dictionaryService.hasCachedSolution(this.currentWord, this.finishWord, options);
-            if (hasCached && typeof dictionaryService.getFullSolution === 'function') {
-              const solution = await dictionaryService.getFullSolution(this.currentWord, this.finishWord, options);
+            if (this.hasCachedSolution()) {
+              const solution = await this.getFullSolution(this.currentWord, this.finishWord, options);
               if (solution && solution.length >= 2 && solution[1].toUpperCase() !== word) {
                 // Player deviated from previously computed canonical path — invalidate cache
-                if (typeof dictionaryService.invalidateCachedSolution === 'function') {
-                  dictionaryService.invalidateCachedSolution();
-                  console.log('[Game] Hint cache invalidated due to player deviation');
-                }
+                this.invalidateCachedSolution();
+                console.log('[Game] Hint cache invalidated due to player deviation');
               }
             }
           } catch (e) {
@@ -462,6 +505,55 @@ export class GameEngine {
           this.#isApplyingMove = false;
       }
   }
+
+  // Hint/cache helpers moved into GameEngine
+  makeSolutionCacheKey(start: string, end: string, options?: { allowProfanity?: boolean; usedWords?: string[] }) {
+    const used = (options?.usedWords || []).slice().sort().join(',');
+    return `${start}|${end}|${options?.allowProfanity ? '1' : '0'}|${used}`;
+  }
+
+  hasCachedSolution() {
+    return !!this.#_cachedSolution;
+  }
+
+  invalidateCachedSolution() {
+    this.#_cachedSolution = null;
+  }
+
+  async getFullSolution(start: string, end: string, options?: { allowProfanity?: boolean; usedWords?: string[] }) {
+    const key = this.makeSolutionCacheKey(start, end, options);
+    if (this.#_cachedSolution && this.#_cachedSolution.key === key) {
+      return this.#_cachedSolution.path;
+    }
+    const path = await dictionaryService.findShortestPath(start, end, 10, options);
+    if (path && path.length) {
+      this.#_cachedSolution = { key, path };
+    }
+    return path;
+  }
+
+  async getHint(start: string, end: string, options?: { allowProfanity?: boolean; usedWords?: string[] }) {
+    const path = await this.getFullSolution(start, end, options);
+    if (!path || path.length < 2) return null;
+    return path[1];
+  }
+
+  // revealSolution: apply remaining moves to show solution (calls makeMove for each step)
+  async revealSolution(solution: string[]) {
+    if (!solution || solution.length === 0) return;
+    // If solution includes currentWord as first element, skip it
+    let idx = 0;
+    if (solution[0] === this.currentWord) idx = 1;
+    for (; idx < solution.length; idx++) {
+      const w = solution[idx];
+      // attempt move; if invalid, stop
+      const ok = await this.makeMove(w);
+      if (!ok) break;
+      // small delay to allow UI updates (non-blocking), but keep it minimal
+      await new Promise((r) => setTimeout(r, 120));
+    }
+  }
 }
+
 
 export const game = new GameEngine();

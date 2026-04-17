@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DictionaryService } from './dictionary.svelte';
 
-describe('DictionaryService hint persistence', () => {
-  it('returns next node from same cached solution and avoids recomputing', async () => {
+describe('DictionaryService (no internal cache)', () => {
+  it('calls findShortestPath on each getFullSolution/getHint invocation', async () => {
     const service = new DictionaryService() as any;
     service.findShortestPath = vi.fn(async () => ['cold', 'heck', 'warm']);
 
@@ -12,15 +12,14 @@ describe('DictionaryService hint persistence', () => {
 
     const hint = await service.getHint('COLD', 'WARM', {});
     expect(hint).toBe('heck');
-    expect(service.findShortestPath).toHaveBeenCalledTimes(1);
+    // No caching at DictionaryService level, so findShortestPath called again
+    expect(service.findShortestPath).toHaveBeenCalledTimes(2);
   });
 
-  it('recomputes solution after invalidation or deviation', async () => {
+  it('reflects updated solver results on subsequent calls', async () => {
     const service = new DictionaryService() as any;
     service.findShortestPath = vi.fn(async () => ['cold', 'heck', 'warm']);
     await service.getFullSolution('COLD', 'WARM', {});
-
-    service.invalidateCachedSolution();
 
     service.findShortestPath = vi.fn(async () => ['cold', 'cord', 'warm']);
     const hint = await service.getHint('COLD', 'WARM', {});
