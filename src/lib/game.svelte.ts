@@ -399,6 +399,22 @@ export class GameEngine {
           const word = guess.toUpperCase();
           const validation = await this.validateMove(guess);
           if (!validation.isValid || !validation.action) return false;
+
+          // Auto-invalidation: if a cached canonical solution exists but the player's chosen move deviates
+          try {
+            const options = { allowProfanity: this.#allowProfanity, usedWords: this.history.map(step => step.word) };
+            const hasCached = dictionaryService.hasCachedSolution(this.currentWord, this.finishWord, options);
+            if (hasCached) {
+              const solution = await dictionaryService.getFullSolution(this.currentWord, this.finishWord, options);
+              if (solution && solution.length >= 2 && solution[1].toUpperCase() !== word) {
+                // Player deviated from previously computed canonical path — invalidate cache
+                dictionaryService.invalidateCachedSolution();
+              }
+            }
+          } catch (e) {
+            console.warn('[Game] Hint cache check failed', e);
+          }
+
           const moveScore = this.calculateMoveScore(validation.obscurity || 0);
           
           this.currentWord = word;

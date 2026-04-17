@@ -341,6 +341,11 @@ export class DictionaryService {
     return path[1];
   }
 
+  hasCachedSolution(start: string, end: string, options: PathOptions = {}): boolean {
+    const key = this.makeSolutionCacheKey(start, end, options);
+    return !!(this._cachedSolution && this._cachedSolution.key === key);
+  }
+
   invalidateCachedSolution() {
     this._cachedSolution = null;
   }
