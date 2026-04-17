@@ -347,5 +347,3 @@ export class DictionaryService {
 }
 
 export const dictionaryService = new DictionaryService();
-
-export const dictionaryService = new DictionaryService();
