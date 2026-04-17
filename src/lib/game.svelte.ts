@@ -408,7 +408,10 @@ export class GameEngine {
               const solution = await dictionaryService.getFullSolution(this.currentWord, this.finishWord, options);
               if (solution && solution.length >= 2 && solution[1].toUpperCase() !== word) {
                 // Player deviated from previously computed canonical path — invalidate cache
-                if (typeof dictionaryService.invalidateCachedSolution === 'function') dictionaryService.invalidateCachedSolution();
+                if (typeof dictionaryService.invalidateCachedSolution === 'function') {
+                  dictionaryService.invalidateCachedSolution();
+                  console.log('[Game] Hint cache invalidated due to player deviation');
+                }
               }
             }
           } catch (e) {
