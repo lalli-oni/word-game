@@ -37,7 +37,8 @@
       <label class="flex items-center justify-between cursor-pointer group">
         <span class="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">Untamed Vocabulary (Profanity)</span>
         <div class="relative inline-flex items-center">
-          <input type="checkbox" bind:checked={game.allowProfanity} class="sr-only peer">
+          <input id="allow-profanity" type="checkbox" bind:checked={game.allowProfanity} class="sr-only peer" aria-label="Allow profanity in word choices">
+          <label for="allow-profanity" class="sr-only">Allow profanity in word choices</label>
           <div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
         </div>
       </label>

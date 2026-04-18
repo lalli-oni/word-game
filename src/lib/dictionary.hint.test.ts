@@ -1,3 +1,7 @@
+/**
+ * Tests for DictionaryService hint-finding helpers.
+ * Mocks: dictionary JSON hydration and IDB interactions are stubbed.
+ */
 import { describe, expect, it, vi } from 'vitest';
 import { DictionaryService } from './dictionary.svelte';
 

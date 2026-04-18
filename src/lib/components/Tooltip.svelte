@@ -51,12 +51,15 @@
 <div 
   bind:this={triggerEl}
   class={className}
+  role="button"
   tabindex="0"
   aria-describedby={tooltipId}
+  aria-expanded={visible}
   onmouseenter={() => visible = true}
   onmouseleave={() => visible = false}
   onfocus={() => visible = true}
   onblur={() => visible = false}
+  onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { visible = !visible; e.preventDefault(); } if (e.key === 'Escape') visible = false; }}
 >
   {@render children?.()}
 </div>

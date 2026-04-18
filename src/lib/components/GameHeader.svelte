@@ -51,8 +51,8 @@
       <svelte:component this={HintControl} showSolveConfirm={(cb) => confirmSolve(cb)} />
 
       
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="random-config-wrapper group" onmouseenter={() => onToggleRandomConfig(true)} onmouseleave={() => onToggleRandomConfig(false)}>
+      <!-- make trigger keyboard accessible: use a button for the toggle and expose aria attributes -->
+      <div class="random-config-wrapper group">
           <div class="random-trigger" class:is-expanded={showRandomConfig}>
               <button onclick={onConfirmNewJourney} disabled={game.isGenerating || game.isSolving} class="random-btn">
                 {#if game.isGenerating}

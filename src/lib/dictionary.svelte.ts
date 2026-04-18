@@ -17,6 +17,16 @@ export interface PathOptions {
   usedWords?: Iterable<string>;
 }
 
+/**
+ * DictionaryService
+ * Manages IndexedDB hydration and provides pathfinding utilities for the solver.
+ * - init(): initializes DB and triggers hydration if needed
+ * - getEntry(word): returns the dictionary entry from IDB or in-memory hydration source
+ * - findShortestPath(start, end): solver used by GameEngine
+ *
+ * Note: `status === 'ready'` indicates priority batch loaded; use `isFullyHydrated` to
+ * know when all batches are complete.
+ */
 export class DictionaryService {
   private dbName = 'WordConnectionDB';
   private dbVersion = 3;

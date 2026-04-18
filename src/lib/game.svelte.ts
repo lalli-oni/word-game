@@ -52,6 +52,18 @@ const CONFIG_KEY = 'word_connection_config';
 const STATE_KEY = 'word_connection_game_state';
 const COMPLETED_KEY = 'word_connection_completed';
 
+/**
+ * GameEngine - central game state manager.
+ *
+ * Public methods:
+ * - getHint(start, end, options): Promise<string | null> — returns the next step in a canonical solution when available.
+ * - getFullSolution(start, end, options): Promise<string[] | null> — returns the full solver path or null.
+ * - revealSolution(solution): Promise<void> — applies remaining moves from a solution sequentially.
+ * - makeMove(guess): Promise<boolean> — validates and applies a move, handles scoring and cache invalidation.
+ *
+ * The GameEngine owns hint caching and concurrency deduction to ensure synchronous, deterministic
+ * hint behavior for the UI. Methods are safe to call from UI components and tests.
+ */
 export class GameEngine {
   // Game State
   startWord = $state('COLD');

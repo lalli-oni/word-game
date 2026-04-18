@@ -1,3 +1,7 @@
+/**
+ * shareResult: copy a formatted journey summary to clipboard.
+ * Returns true if the summary included the Magic Wand note (caller can clear suggestedByWand if desired).
+ */
 export async function shareResult(game: any): Promise<boolean> {
     const typeEmojis = { morph: '🟦', synonym: '🟪', antonym: '🟧', anagram: '🟫' };
     const pathString = game.history.map(m => m.type !== 'origin' && m.action ? typeEmojis[m.action] : '⬜').join('');
@@ -11,7 +15,21 @@ export async function shareResult(game: any): Promise<boolean> {
       return appended;
     } catch (e) {
       console.warn('[Share] Clipboard write failed', e);
-      // fallback: no-op (could implement textarea selection fallback)
+      // fallback: try textarea selection approach for older/locked contexts
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'absolute';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (ex) {
+        // final fallback: give up silently (app will still notify user via toast)
+        console.warn('[Share] Fallback copy failed', ex);
+      }
       return appended;
     }
 }
