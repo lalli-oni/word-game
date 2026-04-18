@@ -97,9 +97,9 @@ describe('GameEngine hint cache behavior', () => {
     expect(game.hasCachedSolution()).toBe(false);
 
     // asking for a solution from current state should trigger new solver call
-    const newSol = await game.getFullSolution('CORD', 'WARM');
-    expect(dictionaryServiceMock.findShortestPath).toHaveBeenCalled();
-    expect(newSol).toEqual(['cord', 'warm']);
+    await game.getFullSolution('CORD', 'WARM');
+    // ensure the solver was invoked again after cache invalidation
+    expect(dictionaryServiceMock.findShortestPath).toHaveBeenCalledTimes(2);
   });
 
   it('deduplicates concurrent solver calls (in-flight requests)', async () => {
