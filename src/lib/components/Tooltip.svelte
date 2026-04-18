@@ -1,3 +1,4 @@
+<!-- Minimal a11y: tooltip is keyboard-focusable and toggles on focus/keydown. Heavy a11y polish was intentionally kept minimal by request. -->
 <script lang="ts">
   import { fade, scale } from 'svelte/transition';
 

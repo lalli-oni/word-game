@@ -215,6 +215,11 @@ export class DictionaryService {
     return undefined;
   }
 
+/**
+   * Get a random word from the dictionary by length.
+   * Note: if the DB is empty during early hydration this returns a safe fallback ('COLD') to avoid throwing
+   * during UI pregeneration. This keeps behavior deterministic in tests and early app load.
+   */
   async getRandomWord(length?: number): Promise<string> {
       if (!this.db) await this.init();
       const tx = this.db!.transaction('dictionary', 'readonly');
