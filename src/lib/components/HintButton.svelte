@@ -46,10 +46,16 @@
 </script>
 
 <div class="hint-controls flex gap-2 items-center">
-  <Button variant="secondary" size="icon" onclick={onHint} loading={busy} disabled={game.isGenerating || game.isGameOver}>🫵</Button>
-  <Button variant="secondary" size="icon" onclick={onSolve} loading={busy} disabled={game.isGenerating || game.isGameOver}>🔓</Button>
+  <Button variant="secondary" size="icon" onclick={onHint} loading={busy} disabled={game.isGenerating || game.isGameOver} aria-label="Get hint (Magic Wand)">
+    <span class="wand" aria-hidden="true">🪄</span>
+  </Button>
+  <Button variant="secondary" size="icon" onclick={onSolve} loading={busy} disabled={game.isGenerating || game.isGameOver} aria-label="Reveal solution">
+    <span class="unlock" aria-hidden="true">🔓</span>
+  </Button>
 </div>
 
 <style>
   .hint-controls { }
+  .wand { display:inline-block; transform-origin:center; transition:transform .25s ease; }
+  .wand:active { transform: rotate(-12deg) scale(.98); }
 </style>

@@ -52,6 +52,7 @@
 
       <div class="flex items-center justify-between">
         <span class="text-sm font-bold text-slate-300">Hint Penalty Points</span>
+        <!-- TODO: Implement scoring hook in GameEngine to deduct points when a hint is used -->
         <input type="number" min="0" class="w-20 text-right bg-slate-700 border border-slate-600 rounded p-1" bind:value={game.hintPenaltyPoints} disabled={!game.hintPenaltyEnabled} />
       </div>
     </div>
