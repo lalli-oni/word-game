@@ -15,6 +15,8 @@
       if (hint) {
         // Pre-fill the input or show suggestion (simple: set a reactive suggestedWord)
         game.suggestedWord = hint.toUpperCase();
+        // mark that a suggestion was provided (not the Magic Wand full-solve)
+        try { game.suggestedByWand = false; } catch (e) {}
       } else {
         // show simple toast via game state
         game.toastMessage = 'No hint available';
