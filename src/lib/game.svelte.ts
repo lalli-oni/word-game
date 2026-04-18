@@ -11,6 +11,17 @@ export type HintOptions = {
 
 export type Solution = string[];
 
+/**
+ * GameAPI - public API for the GameEngine.
+ *
+ * Methods:
+ * - getHint(start, end, options): Promise<string | null>
+ * - getFullSolution(start, end, options): Promise<string[] | null>
+ * - revealSolution(solution): Promise<void>
+ * - makeMove(guess): Promise<boolean>
+ *
+ * Properties expose current game state and config accessors for UI bindings.
+ */
 export interface GameAPI {
     // Game state
     startWord: string;

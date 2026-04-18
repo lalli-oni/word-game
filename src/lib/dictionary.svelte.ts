@@ -2,6 +2,15 @@ import { openDB, type IDBPDatabase } from 'idb';
 import { errorService } from './error.svelte';
 import { calculateObscurity, isAnagram, isOneLetterDifferent } from './word-utils';
 
+/**
+ * DictionaryEntry - metadata stored per word in IndexedDB.
+ * word: canonical lowercase word string
+ * synonyms/antonyms: semantic relations
+ * tags: classification tags (e.g., 'profanity')
+ * rank: numeric frequency/rank used for obscurity scoring
+ * isPriority: optional flag used during hydration
+ * neighbors: optional neighbor list for solver performance
+ */
 export interface DictionaryEntry {
   word: string;
   synonyms: string[];
