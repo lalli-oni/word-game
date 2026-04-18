@@ -87,6 +87,8 @@ export class GameEngine {
 
   // Hint/cache storage (moved from DictionaryService)
   #_cachedSolution: { key: string; path: string[] } | null = null;
+  // In-flight promise map to deduplicate concurrent solver calls
+  #_inflightSolutions: Map<string, Promise<string[] | null>> = new Map();
 
   get allowProfanity() { return this.#allowProfanity; }
   set allowProfanity(val: boolean) {
@@ -516,8 +518,10 @@ export class GameEngine {
 
   // Hint/cache helpers moved into GameEngine
   makeSolutionCacheKey(start: string, end: string, options?: { allowProfanity?: boolean; usedWords?: string[] }) {
-    const used = (options?.usedWords || []).slice().sort().join(',');
-    return `${start}|${end}|${options?.allowProfanity ? '1' : '0'}|${used}`;
+    const s = start.trim().toLowerCase();
+    const e = end.trim().toLowerCase();
+    const used = (options?.usedWords || []).map(w => w.trim().toLowerCase()).slice().sort().join(',');
+    return `${s}|${e}|${options?.allowProfanity ? '1' : '0'}|${used}`;
   }
 
   hasCachedSolution() {
@@ -528,16 +532,33 @@ export class GameEngine {
     this.#_cachedSolution = null;
   }
 
+  /**
+   * Compute or return a cached full solution path between start and end.
+   * Deduplicates concurrent calls by key.
+   */
   async getFullSolution(start: string, end: string, options?: { allowProfanity?: boolean; usedWords?: string[] }) {
     const key = this.makeSolutionCacheKey(start, end, options);
     if (this.#_cachedSolution && this.#_cachedSolution.key === key) {
       return this.#_cachedSolution.path;
     }
-    const path = await dictionaryService.findShortestPath(start, end, 10, options);
-    if (path && path.length) {
-      this.#_cachedSolution = { key, path };
+    if (this.#_inflightSolutions.has(key)) {
+      return await this.#_inflightSolutions.get(key)!;
     }
-    return path;
+    const p = (async () => {
+      const path = await dictionaryService.findShortestPath(start, end, 10, options);
+      if (path && path.length) {
+        this.#_cachedSolution = { key, path };
+      }
+      return path;
+    })();
+
+    this.#_inflightSolutions.set(key, p);
+    try {
+      const res = await p;
+      return res;
+    } finally {
+      this.#_inflightSolutions.delete(key);
+    }
   }
 
   async getHint(start: string, end: string, options?: { allowProfanity?: boolean; usedWords?: string[] }) {

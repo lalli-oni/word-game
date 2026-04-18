@@ -15,6 +15,7 @@
   let triggerEl = $state<HTMLElement>();
   let tooltipEl = $state<HTMLElement>();
   let coords = $state({ top: 0, left: 0 });
+  const tooltipId = `tooltip-${Math.random().toString(36).slice(2,9)}`;
 
   function updatePosition() {
     if (!triggerEl || !tooltipEl) return;
@@ -50,8 +51,12 @@
 <div 
   bind:this={triggerEl}
   class={className}
+  tabindex="0"
+  aria-describedby={tooltipId}
   onmouseenter={() => visible = true}
   onmouseleave={() => visible = false}
+  onfocus={() => visible = true}
+  onblur={() => visible = false}
 >
   {@render children?.()}
 </div>
@@ -59,6 +64,8 @@
 {#if visible}
   <div 
     bind:this={tooltipEl}
+    id={tooltipId}
+    role="tooltip"
     transition:scale={{ duration: 150, start: 0.95 }}
     class="fixed z-[1000] pointer-events-none p-6 bg-slate-900 border-2 border-slate-700 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.6)] min-w-[220px] backdrop-blur-md"
     style="left: {coords.left}px; top: {coords.top}px"

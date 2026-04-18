@@ -30,6 +30,7 @@ export class DictionaryService {
   totalBatches = $state(0);
   completedBatches = $state(0);
   errorMessage = $state<string | null>(null);
+  isFullyHydrated = $state(false);
 
   overallProgress = $derived(this.totalBatches > 0 ? Math.round((this.completedBatches / this.totalBatches) * 100) : 0);
 
@@ -85,6 +86,7 @@ export class DictionaryService {
           console.log('[IDB] Database is up to date.');
           this.isPriorityLoaded = true;
           this.status = 'ready';
+          this.isFullyHydrated = true;
         }
     } catch (e: any) {
         this.status = 'error';
@@ -165,6 +167,7 @@ export class DictionaryService {
           localStorage.setItem(this.HASH_KEY, newHash);
       }
       this.#hydrationSource = null;
+      this.isFullyHydrated = true;
       console.log('[IDB] All batches completed. Memory fallback released.');
   }
 
@@ -212,12 +215,13 @@ export class DictionaryService {
       if (length) {
           const index = store.index('by-length');
           count = await index.count(length);
-          if (count === 0) return this.getRandomWord();
+          if (count === 0) return 'COLD';
           const randomIndex = Math.floor(Math.random() * count);
           cursor = await index.openCursor(length);
           if (randomIndex > 0) await cursor?.advance(randomIndex);
       } else {
           count = await store.count();
+          if (count === 0) return 'COLD';
           const randomIndex = Math.floor(Math.random() * count);
           cursor = await store.openCursor();
           if (randomIndex > 0) await cursor?.advance(randomIndex);
