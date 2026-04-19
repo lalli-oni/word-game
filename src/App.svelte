@@ -165,8 +165,7 @@
   <GameHeader 
     onOpenLevels={() => showJourneyDialog = true}
     onOpenSettings={() => showSettingsDialog = true}
-    onConfirmWand={() => confirmAction('Wave your wand?', 'Find the shortest path to the goal.', 'WAVE THE WAND', 'I CAN DO IT!', () => game.solve())}
-    onConfirmNewJourney={() => confirmAction('Abandon Journey?', 'Start a new mysterious path.', 'START NEW', 'STAY ON JOURNEY', () => game.loadRandomJourney())}
+onConfirmNewJourney={() => confirmAction('Abandon Journey?', 'Start a new mysterious path.', 'START NEW', 'STAY ON JOURNEY', () => game.loadRandomJourney())}
     {showRandomConfig}
     onToggleRandomConfig={(v) => showRandomConfig = v}
     isGameOver={game.isGameOver}

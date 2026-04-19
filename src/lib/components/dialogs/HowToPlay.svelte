@@ -1,53 +1,56 @@
-<script>
-  let { show = false, onClose = () => {} } = $props();
+<script lang="ts">
+  interface Props {
+    show: boolean;
+    onClose: () => void;
+  }
+
+  let { show, onClose }: Props = $props();
+  let dialog: HTMLDialogElement;
+
+  $effect(() => {
+    if (show) dialog?.showModal();
+    else dialog?.close();
+  });
+
+  function handleBackdropClick(e: MouseEvent) {
+    if (e.target === dialog) onClose();
+  }
 </script>
 
-{#if show}
-  <div class="modal-backdrop" tabindex="-1" aria-modal="true" role="dialog">
-    <div class="modal-content">
-      <h2>How To Play</h2>
-      <ol>
-        <li>Transform the start word into the goal word using valid moves. <b>Each move must maintain the same word length.</b></li>
-        <li>Move types:
-          <ul>
-            <li><b>Morph</b>: Change one letter to form a new valid word.</li>
-            <li><b>Anagram</b>: Rearrange all letters to form a new valid word.</li>
-            <li><b>Synonym</b>: Enter a word with a similar meaning.</li>
-            <li><b>Antonym</b>: Enter a word with the opposite meaning.</li>
-          </ul>
-        </li>
-        <li>Use the <b>Hint</b> (magic wand) for a clue if you get stuck.</li>
-      </ol>
-      <button class="close-btn" onclick={onClose} aria-label="Close How To Play">Close</button>
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<dialog
+  bind:this={dialog}
+  onclick={handleBackdropClick}
+  onclose={onClose}
+  class="bg-transparent backdrop:bg-slate-950/80 p-4 w-full max-w-md outline-none"
+>
+  <div class="bg-slate-800 border-2 border-slate-700 rounded-[2rem] shadow-2xl p-8">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-xl font-black uppercase italic tracking-tighter text-white">How To Play</h2>
+      <button onclick={onClose} class="text-slate-500 hover:text-white transition-colors">✕</button>
     </div>
-  </div>
-{/if}
 
-<style>
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-  .modal-content {
-    background: #fff;
-    padding: 2rem;
-    border-radius: 8px;
-    max-width: 400px;
-    width: 90%;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.2);
-  }
-  .close-btn {
-    margin-top: 1.5rem;
-    padding: 0.5rem 1.5rem;
-    border: none;
-    background: #222;
-    color: #fff;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-</style>
+    <div class="space-y-4 text-slate-300 text-sm leading-relaxed">
+      <p>
+        Journey from the <span class="text-white font-bold">starting word</span> to the
+        <span class="text-white font-bold">destination word</span> by entering valid English words
+        of the same length.
+      </p>
+      <p>
+        Aim for the <span class="text-white font-bold">lowest score</span> —
+        the more common a word is, the more it costs — among other factors.
+      </p>
+      <p class="text-slate-400 text-xs">
+        Stuck? Use the 🪄 magic wand for a hint, or 🔓 to reveal the full solution.
+      </p>
+    </div>
+
+    <button
+      onclick={onClose}
+      class="mt-8 w-full py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-sm uppercase tracking-wider transition-colors"
+    >
+      Got it
+    </button>
+  </div>
+</dialog>

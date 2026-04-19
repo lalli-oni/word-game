@@ -6,22 +6,19 @@
   import { shareResult } from '../social';
   import { getObscurityColor, getObscurityLabel } from '../word-utils';
   import Button from './Button.svelte';
-  import HowToPlay from './dialogs/HowToPlay.svelte';
 
   interface Props {
     onOpenLevels: () => void;
     onOpenSettings: () => void;
-    onConfirmWand: () => void;
     onConfirmNewJourney: () => void;
     showRandomConfig: boolean;
     onToggleRandomConfig: (val: boolean) => void;
     isGameOver: boolean;
   }
 
-  let { 
+  let {
     onOpenLevels,
     onOpenSettings,
-    onConfirmWand,
     onConfirmNewJourney,
     showRandomConfig,
     onToggleRandomConfig,
@@ -29,15 +26,10 @@
   }: Props = $props();
 
 
-  import HintButton from './HintButton.svelte';
-  const HintControl = HintButton;
+  import HintControls from './HintControls.svelte';
+  const HintControl = HintControls;
 
   let showSharedToast = $state(false);
-  let showHowTo = $state(false);
-
-  function confirmSolve(cb: () => void) {
-    if (confirm('Reveal full solution? This cannot be undone for this run.')) cb();
-  }
 </script>
 
 <header class="game-header">
@@ -53,25 +45,24 @@
     <div class="button-group">
       <Button variant="secondary" size="icon" onclick={onOpenLevels} tooltip="Choose Journey" disabled={game.isGenerating || game.isSolving} class="h-full"><span>🗺️</span></Button>
       
-      {#if game.isGameOver}
-        <Button
-          variant="success"
-          onclick={() => {
-            shareResult(game);
-            showSharedToast = true;
-            setTimeout(() => showSharedToast = false, 3000);
-          }}
-          class="uppercase tracking-widest font-black italic px-4 animate-in zoom-in duration-500"
-        >
-          <span>📤</span> SHARE
-        </Button>
-      {:else}
-        <HintControl showSolveConfirm={(cb) => confirmSolve(cb)} />
-      {/if}
+      <div class="hint-share-slot">
+        {#if game.isGameOver}
+          <Button
+            variant="success"
+            onclick={() => {
+              shareResult(game);
+              showSharedToast = true;
+              setTimeout(() => showSharedToast = false, 3000);
+            }}
+            class="animate-in zoom-in duration-500 w-full h-full"
+          >
+            SHARE
+          </Button>
+        {:else}
+          <HintControl />
+        {/if}
+      </div>
 
-      <Button variant="secondary" size="icon" onclick={() => showHowTo = true} tooltip="How to Play" class="h-full"><span>❓</span></Button>
-
-      
       <!-- make trigger keyboard accessible: use a button for the toggle and expose aria attributes -->
       <div class="random-config-wrapper group">
           <div class="random-trigger" class:is-expanded={showRandomConfig}>
@@ -115,7 +106,6 @@
   </div>
 
   {#if showSharedToast}<div class="toast-shared animate-in slide-in-from-top-4 duration-300">Copied to Clipboard!</div>{/if}
-  <HowToPlay show={showHowTo} onClose={() => showHowTo = false} />
 </header>
 
 <style lang="postcss">
@@ -199,6 +189,10 @@
 
   .slider {
     @apply w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer;
+  }
+
+  .hint-share-slot {
+    @apply flex items-center h-full w-28 shrink-0;
   }
 
   .score-display {
