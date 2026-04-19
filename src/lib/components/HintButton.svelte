@@ -2,7 +2,7 @@
   import Button from './Button.svelte';
   import { game } from '../game.svelte';
 
-  export let showSolveConfirm: (cb: () => void) => void;
+  let { showSolveConfirm }: { showSolveConfirm: (cb: () => void) => void } = $props();
 
   let busy = $state(false);
 

@@ -53,7 +53,7 @@
     <div class="button-group">
       <Button variant="secondary" size="icon" onclick={onOpenLevels} tooltip="Choose Journey" disabled={game.isGenerating || game.isSolving} class="h-full"><span>🗺️</span></Button>
       <Button variant="secondary" size="icon" onclick={() => { game.suggestedByWand = true; onConfirmWand(); }} loading={game.isSolving} tooltip="Magic Path" disabled={game.isGenerating || game.isGameOver} class="h-full"><span>🪄</span></Button>
-      <svelte:component this={HintControl} showSolveConfirm={(cb) => confirmSolve(cb)} />
+      <HintControl showSolveConfirm={(cb) => confirmSolve(cb)} />
       <Button variant="secondary" size="icon" onclick={() => showHowTo = true} tooltip="How to Play" class="h-full"><span>❓</span></Button>
 
       

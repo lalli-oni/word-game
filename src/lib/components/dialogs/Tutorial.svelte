@@ -1,9 +1,7 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
-  export let open = false;
-  const dispatch = createEventDispatcher();
+  let { open = $bindable(false), onClose = () => {} } = $props();
 
-  let step = 0;
+  let step = $state(0);
   const steps = [
     'Welcome! This short tutorial shows how to play.',
     'Make a move by typing a word and submitting.',
@@ -16,7 +14,7 @@
     else finish();
   }
   function prev() { if (step > 0) step -= 1; }
-  function finish() { open = false; dispatch('close'); }
+  function finish() { open = false; onClose(); }
 </script>
 
 {#if open}
@@ -25,10 +23,10 @@
       <h2>Tutorial</h2>
       <p>{steps[step]}</p>
       <div class="controls">
-        <button on:click={prev} disabled={step===0}>Previous</button>
-        <button on:click={next}>{step === steps.length - 1 ? 'Finish' : 'Next'}</button>
+        <button onclick={prev} disabled={step===0}>Previous</button>
+        <button onclick={next}>{step === steps.length - 1 ? 'Finish' : 'Next'}</button>
       </div>
-      <button class="close" on:click={finish} aria-label="Close tutorial">×</button>
+      <button class="close" onclick={finish} aria-label="Close tutorial">×</button>
     </div>
   </div>
 {/if}

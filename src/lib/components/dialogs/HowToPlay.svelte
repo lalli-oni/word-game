@@ -1,6 +1,5 @@
 <script>
-  export let show = false;
-  export let onClose = () => {};
+  let { show = false, onClose = () => {} } = $props();
 </script>
 
 {#if show}
@@ -19,7 +18,7 @@
         </li>
         <li>Use the <b>Hint</b> (magic wand) for a clue if you get stuck.</li>
       </ol>
-      <button class="close-btn" on:click={onClose} aria-label="Close How To Play">Close</button>
+      <button class="close-btn" onclick={onClose} aria-label="Close How To Play">Close</button>
     </div>
   </div>
 {/if}
