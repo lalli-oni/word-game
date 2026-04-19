@@ -61,9 +61,9 @@
             showSharedToast = true;
             setTimeout(() => showSharedToast = false, 3000);
           }}
-          class="uppercase tracking-widest font-black italic px-8 animate-in zoom-in duration-500"
+          class="uppercase tracking-widest font-black italic px-4 animate-in zoom-in duration-500"
         >
-          SHARE YOUR JOURNEY
+          <span>📤</span> SHARE
         </Button>
       {:else}
         <HintControl showSolveConfirm={(cb) => confirmSolve(cb)} />
@@ -108,7 +108,7 @@
       <Button variant="secondary" size="icon" onclick={onOpenSettings} tooltip="Settings" disabled={game.isGenerating || game.isSolving} class="h-full"><span>⚙️</span></Button>
     </div>
     
-    <div class="score-display">
+    <div class="score-display flex-shrink-0">
       <div class="score-value">{game.score}</div>
       <span class="trophy">🏆</span>
     </div>
