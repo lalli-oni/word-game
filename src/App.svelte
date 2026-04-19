@@ -171,7 +171,6 @@
     onToggleRandomConfig={(v) => showRandomConfig = v}
     isGameOver={game.isGameOver}
   />
-
   <GameLegend />
 
   <main class="game-board">
