@@ -1,4 +1,7 @@
 <script lang="ts">
+  import Tutorial from './dialogs/Tutorial.svelte';
+  let tutorialOpen = false;
+
   import { game } from '../game.svelte';
   import { shareResult } from '../social';
   import { getObscurityColor, getObscurityLabel } from '../word-utils';
