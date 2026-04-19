@@ -1,7 +1,57 @@
 import { type Journey } from './journeys';
 import { dictionaryService } from './dictionary.svelte';
-import { calculateObscurity, getLetterDifferences, isAnagram } from './word-utils';
+import { calculateObscurity, getLetterDifferences, isAnagram, canonicalWord, displayWord } from './word-utils';
 import type { JourneyStep, ValidationResult } from './types';
+
+// Public API Types
+export type HintOptions = {
+    allowProfanity?: boolean;
+    usedWords?: string[];
+};
+
+export type Solution = string[];
+
+/**
+ * GameAPI - public API for the GameEngine.
+ *
+ * Methods:
+ * - getHint(start, end, options): Promise<string | null>
+ * - getFullSolution(start, end, options): Promise<string[] | null>
+ * - revealSolution(solution): Promise<void>
+ * - makeMove(guess): Promise<boolean>
+ *
+ * Properties expose current game state and config accessors for UI bindings.
+ */
+export interface GameAPI {
+    // Game state
+    startWord: string;
+    finishWord: string;
+    currentWord: string;
+    history: JourneyStep[];
+    isGameOver: boolean;
+    score: number;
+    isSolving: boolean;
+    isGenerating: boolean;
+    currentJourneyId: string;
+    completedJourneys: Record<string, JourneyResult>;
+    
+    // Config accessors
+    allowProfanity: boolean;
+    randomWordLength: number;
+    randomMaxObscurity: number;
+    
+    // Methods
+    loadJourney(journey: Journey): void;
+    loadRandomJourney(): Promise<void>;
+    reset(): void;
+    validateMove(guess: string): Promise<ValidationResult>;
+    makeMove(guess: string): Promise<boolean>;
+    solve(): Promise<void>;
+    calculateMoveScore(obscurity: number): number;
+    getHint(start: string, end: string, options?: HintOptions): Promise<string | null>;
+    getFullSolution(start: string, end: string, options?: HintOptions): Promise<Solution | null>;
+    revealSolution(solution: Solution): Promise<void>;
+}
 
 export interface JourneyResult {
     journeyId: string;
@@ -13,6 +63,18 @@ const CONFIG_KEY = 'word_connection_config';
 const STATE_KEY = 'word_connection_game_state';
 const COMPLETED_KEY = 'word_connection_completed';
 
+/**
+ * GameEngine - central game state manager.
+ *
+ * Public methods:
+ * - getHint(start, end, options): Promise<string | null> — returns the next step in a canonical solution when available.
+ * - getFullSolution(start, end, options): Promise<string[] | null> — returns the full solver path or null.
+ * - revealSolution(solution): Promise<void> — applies remaining moves from a solution sequentially.
+ * - makeMove(guess): Promise<boolean> — validates and applies a move, handles scoring and cache invalidation.
+ *
+ * The GameEngine owns hint caching and concurrency deduction to ensure synchronous, deterministic
+ * hint behavior for the UI. Methods are safe to call from UI components and tests.
+ */
 export class GameEngine {
   // Game State
   startWord = $state('COLD');
@@ -27,9 +89,14 @@ export class GameEngine {
   isGenerating = $state(false);
   currentJourneyId = $state('tutorial');
   
+  // UI helpers
+  suggestedWord = $state<string | null>(null);
+  toastMessage = $state('');
+  suggestedByWand = $state(false);
+
   // Stats
   completedJourneys = $state<Record<string, JourneyResult>>({});
-  
+
   // Pre-generation
   #pregeneratedJourney = $state<Journey | null>(null);
   #isPregenerating = $state(false);
@@ -38,7 +105,13 @@ export class GameEngine {
   #allowProfanity = $state(false);
   #randomWordLength = $state(4);
   #randomMaxObscurity = $state(10);
+
   #isApplyingMove = $state(false);
+
+  // Hint/cache storage (moved from DictionaryService)
+  #_cachedSolution: { key: string; path: string[] } | null = null;
+  // In-flight promise map to deduplicate concurrent solver calls
+  #_inflightSolutions: Map<string, Promise<string[] | null>> = new Map();
 
   get allowProfanity() { return this.#allowProfanity; }
   set allowProfanity(val: boolean) {
@@ -60,7 +133,13 @@ export class GameEngine {
       this.saveConfig();
       this.triggerPregenerate();
   }
-  
+
+
+
+
+
+
+
   #validSemanticMoves = $state<{ synonyms: string[], antonyms: string[] }>({ synonyms: [], antonyms: [] });
   #semanticMovesWord = $state<string | null>(null);
   #semanticMovesPromise: Promise<void> | null = null;
@@ -110,8 +189,8 @@ export class GameEngine {
       const urlEnd = params.get('e');
 
       if (urlStart && urlEnd) {
-          this.startWord = urlStart.toUpperCase();
-          this.finishWord = urlEnd.toUpperCase();
+          this.startWord = displayWord(urlStart);
+          this.finishWord = displayWord(urlEnd);
           this.currentWord = this.startWord;
           this.history = [{ type: 'origin', word: this.startWord, timestamp: Date.now(), obscurity: 0 }];
           this.isGameOver = false;
@@ -125,10 +204,10 @@ export class GameEngine {
           const saved = localStorage.getItem(STATE_KEY);
           if (saved) {
               const parsed = JSON.parse(saved);
-              this.startWord = parsed.startWord;
-              this.finishWord = parsed.finishWord;
-              this.currentWord = parsed.currentWord;
-              this.history = parsed.history;
+              this.startWord = displayWord(parsed.startWord);
+              this.finishWord = displayWord(parsed.finishWord);
+              this.currentWord = displayWord(parsed.currentWord);
+              this.history = (parsed.history || []).map((h: any) => ({ ...h, word: displayWord(h.word) }));
               this.isGameOver = parsed.isGameOver;
               this.score = parsed.score;
               this.currentJourneyId = parsed.currentJourneyId || 'tutorial';
@@ -157,7 +236,7 @@ export class GameEngine {
   }
 
   async #refreshSemanticMoves(word: string) {
-      const targetWord = word.toUpperCase();
+      const targetWord = displayWord(word);
       if (this.#semanticMovesWord === targetWord) return;
       if (this.#semanticMovesPromise) {
           await this.#semanticMovesPromise;
@@ -173,8 +252,8 @@ export class GameEngine {
       const entry = await dictionaryService.getEntry(word);
       if (entry) {
           this.#validSemanticMoves = {
-              synonyms: entry.synonyms,
-              antonyms: entry.antonyms
+              synonyms: entry.synonyms.map(canonicalWord),
+              antonyms: entry.antonyms.map(canonicalWord)
           };
           this.#semanticMovesWord = word;
           console.log(`[Game] Loaded ${entry.synonyms.length} synonyms and ${entry.antonyms.length} antonyms.`);
@@ -187,9 +266,9 @@ export class GameEngine {
   }
 
   loadJourney(journey: Journey) {
-      const start = journey.startWord.toUpperCase();
+      const start = displayWord(journey.startWord);
       this.startWord = start;
-      this.finishWord = journey.finishWord.toUpperCase();
+      this.finishWord = displayWord(journey.finishWord);
       this.currentWord = start;
       this.history = [{ type: 'origin', word: start, timestamp: Date.now(), obscurity: 0 }];
       this.isGameOver = false;
@@ -332,11 +411,11 @@ export class GameEngine {
   }
 
   async validateMove(guess: string): Promise<ValidationResult> {
-      const word = guess.toUpperCase();
+      const word = displayWord(guess);
       if (!word || word.length < 2) return { isValid: false, errors: [] };
       if (this.isGameOver) return { isValid: false, errors: ['Game is over'] };
       
-      if (this.history.some(m => m.word === word)) {
+      if (this.history.some(m => displayWord(m.word) === word)) {
           return { isValid: false, errors: [`"${word}" has already been used.`] };
       }
 
@@ -347,10 +426,14 @@ export class GameEngine {
       await this.#refreshSemanticMoves(prevWord);
       
       const entry = await dictionaryService.getEntry(word);
-      const isVisible = entry && (this.#allowProfanity || !entry.tags.includes('profanity'));
+      const exists = !!entry;
+      const isProfane = entry?.tags.includes('profanity');
+      const isVisible = exists && (this.#allowProfanity || !isProfane);
 
-      if (!isVisible) {
+      if (!exists) {
           errors.push(`"${word}" is not in our dictionary.`);
+      } else if (!isVisible) {
+          errors.push(`"${word}" is filtered by profanity settings.`);
       }
 
       const obscurity = entry ? calculateObscurity(entry.rank) : 10;
@@ -371,7 +454,7 @@ export class GameEngine {
           return { isValid: true, action: 'anagram', errors: [], obscurity };
       }
 
-      const wordLower = word.toLowerCase();
+      const wordLower = canonicalWord(word);
       if (isVisible && this.#validSemanticMoves.synonyms.includes(wordLower)) {
           return { isValid: true, action: 'synonym', errors: [], obscurity };
       }
@@ -396,9 +479,25 @@ export class GameEngine {
       this.#isApplyingMove = true;
 
       try {
-          const word = guess.toUpperCase();
+          const word = displayWord(guess);
           const validation = await this.validateMove(guess);
           if (!validation.isValid || !validation.action) return false;
+
+          // Auto-invalidation: if a cached canonical solution exists but the player's chosen move deviates
+          try {
+            const options = { allowProfanity: this.#allowProfanity, usedWords: this.history.map(step => step.word) };
+            if (this.hasCachedSolution()) {
+              const solution = await this.getFullSolution(this.currentWord, this.finishWord, options);
+              if (solution && solution.length >= 2 && displayWord(solution[1]) !== word) {
+                // Player deviated from previously computed canonical path — invalidate cache
+                this.invalidateCachedSolution();
+                console.log('[Game] Hint cache invalidated due to player deviation');
+              }
+            }
+          } catch (e) {
+            console.warn('[Game] Hint cache check failed', e);
+          }
+
           const moveScore = this.calculateMoveScore(validation.obscurity || 0);
           
           this.currentWord = word;
@@ -443,6 +542,74 @@ export class GameEngine {
           this.#isApplyingMove = false;
       }
   }
+
+  // Hint/cache helpers moved into GameEngine
+  makeSolutionCacheKey(start: string, end: string, options?: { allowProfanity?: boolean; usedWords?: string[] }) {
+    const s = canonicalWord(start);
+    const e = canonicalWord(end);
+    const used = (options?.usedWords || []).map(canonicalWord).slice().sort().join(',');
+    return `${s}|${e}|${options?.allowProfanity ? '1' : '0'}|${used}`;
+  }
+
+  hasCachedSolution() {
+    return !!this.#_cachedSolution;
+  }
+
+  invalidateCachedSolution() {
+    this.#_cachedSolution = null;
+  }
+
+  /**
+   * Compute or return a cached full solution path between start and end.
+   * Deduplicates concurrent calls by key.
+   */
+  async getFullSolution(start: string, end: string, options?: { allowProfanity?: boolean; usedWords?: string[] }) {
+    const key = this.makeSolutionCacheKey(start, end, options);
+    if (this.#_cachedSolution && this.#_cachedSolution.key === key) {
+      return this.#_cachedSolution.path;
+    }
+    if (this.#_inflightSolutions.has(key)) {
+      return await this.#_inflightSolutions.get(key)!;
+    }
+    const p = (async () => {
+      const path = await dictionaryService.findShortestPath(start, end, 10, options);
+      if (path && path.length) {
+        this.#_cachedSolution = { key, path };
+      }
+      return path;
+    })();
+
+    this.#_inflightSolutions.set(key, p);
+    try {
+      const res = await p;
+      return res;
+    } finally {
+      this.#_inflightSolutions.delete(key);
+    }
+  }
+
+  async getHint(start: string, end: string, options?: { allowProfanity?: boolean; usedWords?: string[] }) {
+    const path = await this.getFullSolution(start, end, options);
+    if (!path || path.length < 2) return null;
+    return path[1];
+  }
+
+  // revealSolution: apply remaining moves to show solution (calls makeMove for each step)
+  async revealSolution(solution: string[]) {
+    if (!solution || solution.length === 0) return;
+    // If solution includes currentWord as first element, skip it
+    let idx = 0;
+    if (displayWord(solution[0]) === displayWord(this.currentWord)) idx = 1;
+    for (; idx < solution.length; idx++) {
+      const w = solution[idx];
+      // attempt move; if invalid, stop
+      const ok = await this.makeMove(w);
+      if (!ok) break;
+      // small delay to allow UI updates (non-blocking), but keep it minimal
+      await new Promise((r) => setTimeout(r, 120));
+    }
+  }
 }
+
 
 export const game = new GameEngine();

@@ -1,0 +1,77 @@
+Purpose
+=======
+Practical, machine-readable guidance for Copilot sessions working on this repo. Focuses on build/test/lint commands, high-level architecture, and repository-specific conventions Copilot must follow.
+
+Build / test / lint (commands)
+------------------------------
+- Install: npm install
+- Dev server: npm run dev
+- Build: npm run build
+- Preview production build: npm run preview
+- Type & Svelte checks: npm run check
+  - Runs: svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json
+- Tests: npm test (runs vitest)
+- Run a single test file (examples):
+  - npm test -- src/lib/dictionary.svelte.test.ts
+  - npx vitest run src/lib/dictionary.svelte.test.ts
+
+High-level architecture (big picture)
+-------------------------------------
+- Frontend: Svelte 5 + TypeScript, styling with Tailwind CSS 4.
+- Central services:
+  - DictionaryService (src/lib/dictionary.svelte.ts): single source-of-truth for dictionary access and solver behavior. Uses idb for persistent storage and exposes an instance: dictionaryService.
+    - DB: WordConnectionDB, object store 'dictionary'. Indexes: 'by-tag', 'by-length'.
+    - Hydration assets: public/dictionary.json and public/dictionary.hash. The service performs a priority batch load and then background batches.
+    - Public API includes init(), getEntry(), getRandomWord(), findShortestPath(...).
+  - Word utils (src/lib/word-utils.ts): deterministic move rules (isAnagram, isOneLetterDifferent, obscurity ranking helpers) used by both UI and solver.
+- UI: components live in src/lib/components/*.svelte (e.g., WordInput.svelte). Presentation delegates validation & state to services; components use Svelte 5 runes ($state, $derived, $effect, $props, $bindable).
+- Content: journeys (src/lib/journeys.ts) provide curated start/finish scenarios.
+
+Key repo-specific conventions
+-----------------------------
+- Move types enforced by engine:
+  - Morph: single-letter change (same length)
+  - Anagram: rearrangement (same length, letters differ)
+  - Semantic: synonyms/antonyms restricted to same length entries when used as moves
+- Data model (DictionaryEntry): { word, synonyms[], antonyms[], tags[], rank, isPriority?, neighbors? }
+  - Words are stored lower-cased in the DB; UI displays/accepts uppercase (components often convert input to uppercase but DB keys are lower-case).
+  - Profanity: an entry includes tags: ['profanity']. Filter by options.allowProfanity in DictionaryService.findShortestPath.
+- IndexedDB hydration:
+  - public/dictionary.hash is read to decide whether to rehydrate from public/dictionary.json.
+  - Priority words (isPriority) are loaded first to make the app playable immediately; remaining words are batched (BATCH_SIZE ≈ 5000) and processed asynchronously.
+  - The localStorage key for the dictionary hash is: dictionary_content_hash
+- Performance & UX:
+  - Solver searches within same-length word sets for morph/anagram checks; during hydration an in-memory source is temporarily consulted for 100% solver accuracy.
+  - getRandomWord may fall back to DB cursor iteration; typical UI expects 1-20 character words (WordInput enforces maxlength 20).
+- Testing conventions:
+  - Tests use Vitest and vi for mocking. Low-level tests focus on DictionaryService and move validation.
+  - Tests commonly stub DictionaryService.db and mock getEntry/getWordsOfLength to isolate solver logic.
+- Svelte 5 runes and component API:
+  - Components use $state, $derived, $effect, $props, and $bindable. Follow existing patterns in src/lib/components/* when adding new UI.
+
+Files & locations of interest
+-----------------------------
+- Core service: src/lib/dictionary.svelte.ts
+- Move rules: src/lib/word-utils.ts
+- Components: src/lib/components/
+- Curated journeys: src/lib/journeys.ts
+- Dictionary assets: public/dictionary.json and public/dictionary.hash
+- Tests: src/lib/*.test.ts (vitest)
+
+AI assistant / other config files
+--------------------------------
+- Existing repository docs incorporated: README.md, PHILOSOPHY.md, GEMINI.md
+- No CLAUDE.md, AGENTS.md, .cursorrules, .clinerules, or AIDER_CONVENTIONS.md were found. If adding AI assistant-specific rules, place them at repo root (e.g., CLAUDE.md) and reference them here.
+
+Practical notes for Copilot sessions
+-----------------------------------
+- Prefer changes to business logic inside DictionaryService and word-utils; UI components should remain thin and delegate validation.
+- When changing dictionary format, update public/dictionary.hash along with public/dictionary.json to ensure correct hydration behavior.
+- Mock dictionaryService.getEntry/getWordsOfLength in unit tests to isolate solver edge cases.
+- Use npm run check before committing TypeScript or Svelte changes.
+
+If updates are needed
+---------------------
+- If adding new test runners or end-to-end suites, update this file with those commands and the recommended single-test invocation.
+
+Generated by: Copilot CLI helper

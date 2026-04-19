@@ -134,7 +134,7 @@ describe('GameEngine move validation', () => {
 
     await expect(game.validateMove('HECK')).resolves.toMatchObject({
       isValid: false,
-      errors: ['"HECK" is not in our dictionary.'],
+      errors: ['"HECK" is filtered by profanity settings.'],
     });
   });
 

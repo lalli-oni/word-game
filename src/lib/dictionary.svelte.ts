@@ -2,6 +2,15 @@ import { openDB, type IDBPDatabase } from 'idb';
 import { errorService } from './error.svelte';
 import { calculateObscurity, isAnagram, isOneLetterDifferent } from './word-utils';
 
+/**
+ * DictionaryEntry - metadata stored per word in IndexedDB.
+ * word: canonical lowercase word string
+ * synonyms/antonyms: semantic relations
+ * tags: classification tags (e.g., 'profanity')
+ * rank: numeric frequency/rank used for obscurity scoring
+ * isPriority: optional flag used during hydration
+ * neighbors: optional neighbor list for solver performance
+ */
 export interface DictionaryEntry {
   word: string;
   synonyms: string[];
@@ -17,6 +26,17 @@ export interface PathOptions {
   usedWords?: Iterable<string>;
 }
 
+/**
+ * DictionaryService
+ * Manages IndexedDB hydration and provides pathfinding utilities for the solver.
+ * - init(): initializes DB and triggers hydration if needed
+ * - getEntry(word): returns the dictionary entry from IDB or in-memory hydration source
+ * - findShortestPath(start, end): solver used by GameEngine
+ *
+ * Note: `status === 'ready'` indicates the priority batch (essential words) is loaded
+ * and the game is playable. Background hydration for the full dictionary continues.
+ * Check `isFullyHydrated` for complete readiness.
+ */
 export class DictionaryService {
   private dbName = 'WordConnectionDB';
   private dbVersion = 3;
@@ -30,6 +50,7 @@ export class DictionaryService {
   totalBatches = $state(0);
   completedBatches = $state(0);
   errorMessage = $state<string | null>(null);
+  isFullyHydrated = $state(false);
 
   overallProgress = $derived(this.totalBatches > 0 ? Math.round((this.completedBatches / this.totalBatches) * 100) : 0);
 
@@ -85,6 +106,7 @@ export class DictionaryService {
           console.log('[IDB] Database is up to date.');
           this.isPriorityLoaded = true;
           this.status = 'ready';
+          this.isFullyHydrated = true;
         }
     } catch (e: any) {
         this.status = 'error';
@@ -142,7 +164,11 @@ export class DictionaryService {
       console.log('[IDB] Priority batch loaded. Ready for play.');
       
       // 2. Process Standard Batches (async)
-      this.processRemaining(standardWords, data, BATCH_SIZE, newHash);
+      this.processRemaining(standardWords, data, BATCH_SIZE, newHash).catch(error => {
+          this.status = 'error';
+          this.errorMessage = error.message;
+          errorService.report(`Background Hydration Failed: ${this.errorMessage}`, error.stack);
+      });
       
       this.status = 'ready';
     } catch (error: any) {
@@ -165,6 +191,7 @@ export class DictionaryService {
           localStorage.setItem(this.HASH_KEY, newHash);
       }
       this.#hydrationSource = null;
+      this.isFullyHydrated = true;
       console.log('[IDB] All batches completed. Memory fallback released.');
   }
 
@@ -172,13 +199,13 @@ export class DictionaryService {
       const tx = this.db!.transaction('dictionary', 'readwrite');
       const store = tx.objectStore('dictionary');
       
-      for (const word of words) {
-          await store.put({
-            word,
-            length: word.length,
-            ...data[word]
-          });
-      }
+      const puts = words.map(word => store.put({
+          word,
+          length: word.length,
+          ...data[word]
+      }));
+      
+      await Promise.all(puts);
       await tx.done;
   }
 
@@ -202,6 +229,12 @@ export class DictionaryService {
     return undefined;
   }
 
+/**
+   * Get a random word from the dictionary by length.
+   * Returns the word in UPPERCASE (canonical display casing).
+   * Note: if the DB is empty during early hydration this returns a safe fallback ('COLD') to avoid throwing
+   * during UI pregeneration. This keeps behavior deterministic in tests and early app load.
+   */
   async getRandomWord(length?: number): Promise<string> {
       if (!this.db) await this.init();
       const tx = this.db!.transaction('dictionary', 'readonly');
@@ -212,17 +245,61 @@ export class DictionaryService {
       if (length) {
           const index = store.index('by-length');
           count = await index.count(length);
-          if (count === 0) return this.getRandomWord();
+          if (count === 0) return 'COLD';
           const randomIndex = Math.floor(Math.random() * count);
           cursor = await index.openCursor(length);
           if (randomIndex > 0) await cursor?.advance(randomIndex);
       } else {
           count = await store.count();
+          if (count === 0) return 'COLD';
           const randomIndex = Math.floor(Math.random() * count);
           cursor = await store.openCursor();
           if (randomIndex > 0) await cursor?.advance(randomIndex);
       }
       return cursor?.value.word.toUpperCase() || 'COLD';
+  }
+
+  private async getNeighbors(word: string, sameLengthWords: Set<string>, entry: DictionaryEntry): Promise<Set<string>> {
+      const neighbors = new Set<string>();
+      
+      // 1. Semantic neighbors (synonyms/antonyms)
+      [...entry.synonyms, ...entry.antonyms].forEach(w => {
+          if (w.length === word.length) neighbors.add(w.toLowerCase());
+      });
+
+      // 2. Precomputed neighbors (if any)
+      if (entry.neighbors) {
+          entry.neighbors.forEach(n => neighbors.add(n.toLowerCase()));
+      }
+
+      // 3. One-letter variants (Morphs)
+      // Instead of scanning the whole dictionary, we generate potential morphs
+      for (let i = 0; i < word.length; i++) {
+          for (let c = 97; c <= 122; c++) { // a-z
+              const char = String.fromCharCode(c);
+              if (char === word[i]) continue;
+              const candidate = word.substring(0, i) + char + word.substring(i + 1);
+              if (sameLengthWords.has(candidate)) {
+                  neighbors.add(candidate);
+              }
+          }
+      }
+
+      // 4. Anagrams
+      // To optimize anagrams, we'd ideally have an anagram index.
+      // For now, if sameLengthWords is large, scanning it is still slow.
+      // But morphs are the most common moves. 
+      // Let's at least keep the anagram check but only against sameLengthWords if it's not too huge,
+      // or better: just check known anagrams if we had them.
+      // Since we don't have an anagram index yet, we'll do a focused scan or skip if too slow.
+      // Actually, many word games use a pre-sorted letter key for anagrams.
+      for (const candidate of sameLengthWords) {
+          if (candidate.length === word.length && isAnagram(word, candidate)) {
+              neighbors.add(candidate);
+          }
+      }
+
+      return neighbors;
   }
 
   async findShortestPath(start: string, end: string, maxSteps = 8, options: PathOptions = {}): Promise<string[] | null> {
@@ -244,12 +321,10 @@ export class DictionaryService {
           bestScores.set(start, 0);
 
           const idbWords = await this.getWordsOfLength(start.length);
-          
-          // Merge with in-memory words during hydration for 100% solver accuracy
           const sameLengthWords = new Set(idbWords);
           if (this.#hydrationSource) {
               Object.keys(this.#hydrationSource).forEach(w => {
-                  if (w.length === start.length) sameLengthWords.add(w);
+                  if (w.length === start.length) sameLengthWords.add(w.toLowerCase());
               });
           }
 
@@ -262,21 +337,7 @@ export class DictionaryService {
               const entry = await this.getEntry(current);
               if (!entry) continue;
 
-              // Only consider synonyms/antonyms of the same length
-              const neighbors = new Set<string>();
-              [...entry.synonyms, ...entry.antonyms].forEach(w => {
-                  if (w.length === current.length) neighbors.add(w);
-              });
-              
-              if (entry.neighbors) {
-                  entry.neighbors.forEach(n => neighbors.add(n));
-              } else {
-                  for (const candidate of sameLengthWords) {
-                      if (isOneLetterDifferent(current, candidate) || isAnagram(current, candidate)) {
-                          neighbors.add(candidate);
-                      }
-                  }
-              }
+              const neighbors = await this.getNeighbors(current, sameLengthWords, entry);
 
               for (const neighbor of neighbors) {
                   if (usedWords.has(neighbor)) continue;
@@ -316,6 +377,16 @@ export class DictionaryService {
       const tx = this.db!.transaction('dictionary', 'readonly');
       const index = tx.objectStore('dictionary').index('by-length');
       return await index.getAllKeys(len) as string[];
+  }
+
+  async getFullSolution(start: string, end: string, options: PathOptions = {}): Promise<string[] | null> {
+    return await this.findShortestPath(start, end, 8, options);
+  }
+
+  async getHint(start: string, end: string, options: PathOptions = {}): Promise<string | null> {
+    const path = await this.getFullSolution(start, end, options);
+    if (!path || path.length < 2) return null;
+    return path[1];
   }
 }
 
