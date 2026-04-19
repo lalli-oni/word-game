@@ -126,7 +126,28 @@
       showBottomIndicator = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight > 10;
   }
 
-  $effect(() => { handleScroll(); if (game.startWord) guess = ''; });
+  // Initial scroll and update indicators
+  $effect(() => { 
+    handleScroll(); 
+  });
+
+  // Reset input only when journey changes
+  $effect(() => {
+    if (game.currentJourneyId || game.startWord) {
+      guess = '';
+      validation = { isValid: false, errors: [] };
+      activeErrors = [];
+    }
+  });
+
+  $effect(() => {
+    if (game.suggestedWord) {
+      console.log('[App] Applying suggestedWord:', game.suggestedWord);
+      guess = game.suggestedWord;
+      handleInput();
+      game.suggestedWord = null;
+    }
+  });
 </script>
 
 <svelte:window onkeydown={handleKeydown} onmousemove={(e) => { mouseX = e.clientX; mouseY = e.clientY; }} />

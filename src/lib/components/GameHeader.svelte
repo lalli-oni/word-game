@@ -16,6 +16,7 @@
     showRandomConfig: boolean;
     onToggleRandomConfig: (val: boolean) => void;
     isGameOver: boolean;
+    guess: string;
   }
 
   let { 
@@ -25,7 +26,8 @@
     onConfirmNewJourney,
     showRandomConfig,
     onToggleRandomConfig,
-    isGameOver
+    isGameOver,
+    guess
   }: Props = $props();
 
 
@@ -66,7 +68,7 @@
           <span>📤</span> SHARE
         </Button>
       {:else}
-        <HintControl showSolveConfirm={(cb) => confirmSolve(cb)} />
+        <HintControl showSolveConfirm={(cb) => confirmSolve(cb)} {guess} />
       {/if}
 
       <Button variant="secondary" size="icon" onclick={() => showHowTo = true} tooltip="How to Play" class="h-full"><span>❓</span></Button>
