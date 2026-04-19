@@ -1,3 +1,11 @@
+export function canonicalWord(word: string): string {
+    return word.trim().toLowerCase();
+}
+
+export function displayWord(word: string): string {
+    return word.trim().toUpperCase();
+}
+
 export function calculateObscurity(rank: number): number {
   if (rank <= 1000) return 0;
   if (rank <= 5000) return 1;

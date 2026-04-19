@@ -8,7 +8,7 @@
     <div class="modal-content">
       <h2>How To Play</h2>
       <ol>
-        <li>Transform the start word into the goal word using valid moves.</li>
+        <li>Transform the start word into the goal word using valid moves. <b>Each move must maintain the same word length.</b></li>
         <li>Move types:
           <ul>
             <li><b>Morph</b>: Change one letter to form a new valid word.</li>
@@ -17,7 +17,7 @@
             <li><b>Antonym</b>: Enter a word with the opposite meaning.</li>
           </ul>
         </li>
-        <li>Use the <b>Hint</b> (magic wand) for a clue. Limited uses per game.</li>
+        <li>Use the <b>Hint</b> (magic wand) for a clue if you get stuck.</li>
       </ol>
       <button class="close-btn" on:click={onClose} aria-label="Close How To Play">Close</button>
     </div>

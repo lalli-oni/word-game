@@ -1,6 +1,6 @@
 import { type Journey } from './journeys';
 import { dictionaryService } from './dictionary.svelte';
-import { calculateObscurity, getLetterDifferences, isAnagram } from './word-utils';
+import { calculateObscurity, getLetterDifferences, isAnagram, canonicalWord, displayWord } from './word-utils';
 import type { JourneyStep, ValidationResult } from './types';
 
 // Public API Types
@@ -189,8 +189,8 @@ export class GameEngine {
       const urlEnd = params.get('e');
 
       if (urlStart && urlEnd) {
-          this.startWord = urlStart.toUpperCase();
-          this.finishWord = urlEnd.toUpperCase();
+          this.startWord = displayWord(urlStart);
+          this.finishWord = displayWord(urlEnd);
           this.currentWord = this.startWord;
           this.history = [{ type: 'origin', word: this.startWord, timestamp: Date.now(), obscurity: 0 }];
           this.isGameOver = false;
@@ -204,10 +204,10 @@ export class GameEngine {
           const saved = localStorage.getItem(STATE_KEY);
           if (saved) {
               const parsed = JSON.parse(saved);
-              this.startWord = parsed.startWord;
-              this.finishWord = parsed.finishWord;
-              this.currentWord = parsed.currentWord;
-              this.history = parsed.history;
+              this.startWord = displayWord(parsed.startWord);
+              this.finishWord = displayWord(parsed.finishWord);
+              this.currentWord = displayWord(parsed.currentWord);
+              this.history = (parsed.history || []).map((h: any) => ({ ...h, word: displayWord(h.word) }));
               this.isGameOver = parsed.isGameOver;
               this.score = parsed.score;
               this.currentJourneyId = parsed.currentJourneyId || 'tutorial';
@@ -236,7 +236,7 @@ export class GameEngine {
   }
 
   async #refreshSemanticMoves(word: string) {
-      const targetWord = word.toUpperCase();
+      const targetWord = displayWord(word);
       if (this.#semanticMovesWord === targetWord) return;
       if (this.#semanticMovesPromise) {
           await this.#semanticMovesPromise;
@@ -252,8 +252,8 @@ export class GameEngine {
       const entry = await dictionaryService.getEntry(word);
       if (entry) {
           this.#validSemanticMoves = {
-              synonyms: entry.synonyms,
-              antonyms: entry.antonyms
+              synonyms: entry.synonyms.map(canonicalWord),
+              antonyms: entry.antonyms.map(canonicalWord)
           };
           this.#semanticMovesWord = word;
           console.log(`[Game] Loaded ${entry.synonyms.length} synonyms and ${entry.antonyms.length} antonyms.`);
@@ -266,9 +266,9 @@ export class GameEngine {
   }
 
   loadJourney(journey: Journey) {
-      const start = journey.startWord.toUpperCase();
+      const start = displayWord(journey.startWord);
       this.startWord = start;
-      this.finishWord = journey.finishWord.toUpperCase();
+      this.finishWord = displayWord(journey.finishWord);
       this.currentWord = start;
       this.history = [{ type: 'origin', word: start, timestamp: Date.now(), obscurity: 0 }];
       this.isGameOver = false;
@@ -411,11 +411,11 @@ export class GameEngine {
   }
 
   async validateMove(guess: string): Promise<ValidationResult> {
-      const word = guess.toUpperCase();
+      const word = displayWord(guess);
       if (!word || word.length < 2) return { isValid: false, errors: [] };
       if (this.isGameOver) return { isValid: false, errors: ['Game is over'] };
       
-      if (this.history.some(m => m.word === word)) {
+      if (this.history.some(m => displayWord(m.word) === word)) {
           return { isValid: false, errors: [`"${word}" has already been used.`] };
       }
 
@@ -426,10 +426,14 @@ export class GameEngine {
       await this.#refreshSemanticMoves(prevWord);
       
       const entry = await dictionaryService.getEntry(word);
-      const isVisible = entry && (this.#allowProfanity || !entry.tags.includes('profanity'));
+      const exists = !!entry;
+      const isProfane = entry?.tags.includes('profanity');
+      const isVisible = exists && (this.#allowProfanity || !isProfane);
 
-      if (!isVisible) {
+      if (!exists) {
           errors.push(`"${word}" is not in our dictionary.`);
+      } else if (!isVisible) {
+          errors.push(`"${word}" is filtered by profanity settings.`);
       }
 
       const obscurity = entry ? calculateObscurity(entry.rank) : 10;
@@ -450,7 +454,7 @@ export class GameEngine {
           return { isValid: true, action: 'anagram', errors: [], obscurity };
       }
 
-      const wordLower = word.toLowerCase();
+      const wordLower = canonicalWord(word);
       if (isVisible && this.#validSemanticMoves.synonyms.includes(wordLower)) {
           return { isValid: true, action: 'synonym', errors: [], obscurity };
       }
@@ -475,7 +479,7 @@ export class GameEngine {
       this.#isApplyingMove = true;
 
       try {
-          const word = guess.toUpperCase();
+          const word = displayWord(guess);
           const validation = await this.validateMove(guess);
           if (!validation.isValid || !validation.action) return false;
 
@@ -484,7 +488,7 @@ export class GameEngine {
             const options = { allowProfanity: this.#allowProfanity, usedWords: this.history.map(step => step.word) };
             if (this.hasCachedSolution()) {
               const solution = await this.getFullSolution(this.currentWord, this.finishWord, options);
-              if (solution && solution.length >= 2 && solution[1].toUpperCase() !== word) {
+              if (solution && solution.length >= 2 && displayWord(solution[1]) !== word) {
                 // Player deviated from previously computed canonical path — invalidate cache
                 this.invalidateCachedSolution();
                 console.log('[Game] Hint cache invalidated due to player deviation');
@@ -541,9 +545,9 @@ export class GameEngine {
 
   // Hint/cache helpers moved into GameEngine
   makeSolutionCacheKey(start: string, end: string, options?: { allowProfanity?: boolean; usedWords?: string[] }) {
-    const s = start.trim().toLowerCase();
-    const e = end.trim().toLowerCase();
-    const used = (options?.usedWords || []).map(w => w.trim().toLowerCase()).slice().sort().join(',');
+    const s = canonicalWord(start);
+    const e = canonicalWord(end);
+    const used = (options?.usedWords || []).map(canonicalWord).slice().sort().join(',');
     return `${s}|${e}|${options?.allowProfanity ? '1' : '0'}|${used}`;
   }
 
@@ -595,7 +599,7 @@ export class GameEngine {
     if (!solution || solution.length === 0) return;
     // If solution includes currentWord as first element, skip it
     let idx = 0;
-    if (solution[0] === this.currentWord) idx = 1;
+    if (displayWord(solution[0]) === displayWord(this.currentWord)) idx = 1;
     for (; idx < solution.length; idx++) {
       const w = solution[idx];
       // attempt move; if invalid, stop

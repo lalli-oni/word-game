@@ -127,6 +127,21 @@ describe('GameEngine hint cache behavior', () => {
 
     // still only one underlying invocation
     expect(dictionaryServiceMock.findShortestPath).toHaveBeenCalledTimes(1);
-  });
+    });
 
-});
+    it('normalizes casing in cache keys', async () => {
+    const game = await loadGame();
+    dictionaryServiceMock.findShortestPath.mockResolvedValue(['cold', 'cool', 'warm']);
+
+    await game.getFullSolution('cold', 'warm');
+    expect(dictionaryServiceMock.findShortestPath).toHaveBeenCalledTimes(1);
+
+    // Request with different casing should hit cache
+    await game.getFullSolution('COLD', 'WARM');
+    expect(dictionaryServiceMock.findShortestPath).toHaveBeenCalledTimes(1);
+
+    // Request with extra whitespace should hit cache
+    await game.getFullSolution('  cold  ', '  warm  ');
+    expect(dictionaryServiceMock.findShortestPath).toHaveBeenCalledTimes(1);
+    });
+    });
