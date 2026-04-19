@@ -52,7 +52,6 @@
   <div class="controls-row">
     <div class="button-group">
       <Button variant="secondary" size="icon" onclick={onOpenLevels} tooltip="Choose Journey" disabled={game.isGenerating || game.isSolving} class="h-full"><span>🗺️</span></Button>
-      <Button variant="secondary" size="icon" onclick={() => { game.suggestedByWand = true; onConfirmWand(); }} loading={game.isSolving} tooltip="Magic Path" disabled={game.isGenerating || game.isGameOver} class="h-full"><span>🪄</span></Button>
       <HintControl showSolveConfirm={(cb) => confirmSolve(cb)} />
       <Button variant="secondary" size="icon" onclick={() => showHowTo = true} tooltip="How to Play" class="h-full"><span>❓</span></Button>
 
@@ -60,14 +59,20 @@
       <!-- make trigger keyboard accessible: use a button for the toggle and expose aria attributes -->
       <div class="random-config-wrapper group">
           <div class="random-trigger" class:is-expanded={showRandomConfig}>
-              <button onclick={onConfirmNewJourney} disabled={game.isGenerating || game.isSolving} class="random-btn" aria-haspopup="true" aria-expanded={showRandomConfig}>
+              <button onclick={onConfirmNewJourney} disabled={game.isGenerating || game.isSolving} class="random-btn" aria-haspopup="true" aria-expanded={showRandomConfig} title="Start Random Journey">
                 {#if game.isGenerating}
                   <svg class="spinner" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 {:else}
                   <span class="dice-icon">🎲</span><span class="word-len">{game.randomWordLength}</span>
                 {/if}
               </button>
-              <div class="chevron-box"><svg class="chevron" class:is-rotated={showRandomConfig} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg></div>
+              <button 
+                onclick={(e) => { e.stopPropagation(); onToggleRandomConfig(!showRandomConfig); }} 
+                class="chevron-box hover:bg-slate-700/50 transition-colors" 
+                aria-label="Toggle Random Settings"
+              >
+                <svg class="chevron" class:is-rotated={showRandomConfig} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
+              </button>
           </div>
           {#if showRandomConfig}
             <div class="dropdown-panel animate-in slide-in-from-top-4 duration-300">
@@ -87,19 +92,21 @@
       <Button variant="secondary" size="icon" onclick={onOpenSettings} tooltip="Settings" disabled={game.isGenerating || game.isSolving} class="h-full"><span>⚙️</span></Button>
     </div>
     
-    <div class="score-display">
+    <div class="score-display relative">
       {#if game.isGameOver}
-          <Button
-            variant="success"
-            onclick={() => {
-              shareResult(game);
-              showSharedToast = true;
-              setTimeout(() => showSharedToast = false, 3000);
-            }}
-            class="w-full uppercase tracking-widest font-black italic"
-          >
-            SHARE YOUR JOURNEY
-          </Button>
+          <div class="absolute right-full mr-4 whitespace-nowrap animate-in slide-in-from-right-4 duration-500">
+            <Button
+              variant="success"
+              onclick={() => {
+                shareResult(game);
+                showSharedToast = true;
+                setTimeout(() => showSharedToast = false, 3000);
+              }}
+              class="uppercase tracking-widest font-black italic shadow-xl shadow-emerald-900/20"
+            >
+              SHARE YOUR JOURNEY
+            </Button>
+          </div>
       {/if}
       <div class="score-value">{game.score}</div>
       <span class="trophy">🏆</span>

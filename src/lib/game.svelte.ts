@@ -60,34 +60,24 @@ export interface JourneyResult {
 }
 
 const CONFIG_KEY = 'word_connection_config';
-const STATE_KEY = 'word_connection_game_state';
-const COMPLETED_KEY = 'word_connection_completed';
+const STATE_KEY = 'word_connection_game_state_v2';
+const COMPLETED_KEY = 'word_connection_completed_v2';
 
 /**
  * GameEngine - central game state manager.
- *
- * Public methods:
- * - getHint(start, end, options): Promise<string | null> — returns the next step in a canonical solution when available.
- * - getFullSolution(start, end, options): Promise<string[] | null> — returns the full solver path or null.
- * - revealSolution(solution): Promise<void> — applies remaining moves from a solution sequentially.
- * - makeMove(guess): Promise<boolean> — validates and applies a move, handles scoring and cache invalidation.
- *
- * The GameEngine owns hint caching and concurrency deduction to ensure synchronous, deterministic
- * hint behavior for the UI. Methods are safe to call from UI components and tests.
+ * ...
  */
 export class GameEngine {
-  // Game State
-  startWord = $state('COLD');
-  finishWord = $state('WARM');
-  currentWord = $state('COLD');
-  history = $state<JourneyStep[]>([
-      { type: 'origin', word: 'COLD', timestamp: Date.now(), obscurity: 0 }
-  ]);
+  // Game State (initialized to empty/safe defaults)
+  startWord = $state('');
+  finishWord = $state('');
+  currentWord = $state('');
+  history = $state<JourneyStep[]>([]);
   isGameOver = $state(false);
   score = $state(0);
   isSolving = $state(false);
   isGenerating = $state(false);
-  currentJourneyId = $state('tutorial');
+  currentJourneyId = $state('');
   
   // UI helpers
   suggestedWord = $state<string | null>(null);
@@ -146,7 +136,9 @@ export class GameEngine {
 
   constructor() {
       this.loadConfig();
-      this.loadGameState();
+      if (!this.loadGameState()) {
+          this.loadTutorial();
+      }
       this.loadCompleted();
       this.init();
   }
@@ -172,6 +164,7 @@ export class GameEngine {
   }
 
   private saveGameState() {
+      if (!this.startWord) return;
       localStorage.setItem(STATE_KEY, JSON.stringify({
           startWord: this.startWord,
           finishWord: this.finishWord,
@@ -179,40 +172,71 @@ export class GameEngine {
           history: this.history,
           isGameOver: this.isGameOver,
           score: this.score,
-          currentJourneyId: this.currentJourneyId
+          currentJourneyId: this.currentJourneyId,
+          version: 2
       }));
   }
 
-  private loadGameState() {
+  private loadGameState(): boolean {
       const params = new URLSearchParams(window.location.search);
       const urlStart = params.get('s');
       const urlEnd = params.get('e');
 
       if (urlStart && urlEnd) {
-          this.startWord = displayWord(urlStart);
-          this.finishWord = displayWord(urlEnd);
-          this.currentWord = this.startWord;
-          this.history = [{ type: 'origin', word: this.startWord, timestamp: Date.now(), obscurity: 0 }];
-          this.isGameOver = false;
-          this.score = 0;
-          this.currentJourneyId = 'shared';
-          window.history.replaceState({}, '', window.location.pathname);
-          return;
+          try {
+              const start = displayWord(urlStart);
+              const finish = displayWord(urlEnd);
+              if (start && finish) {
+                  this.startWord = start;
+                  this.finishWord = finish;
+                  this.currentWord = start;
+                  this.history = [{ type: 'origin', word: start, timestamp: Date.now(), obscurity: 0 }];
+                  this.isGameOver = false;
+                  this.score = 0;
+                  this.currentJourneyId = 'shared';
+                  window.history.replaceState({}, '', window.location.pathname);
+                  return true;
+              }
+          } catch (e) { console.error('Failed to load shared journey', e); }
       }
 
       try {
           const saved = localStorage.getItem(STATE_KEY);
           if (saved) {
               const parsed = JSON.parse(saved);
-              this.startWord = displayWord(parsed.startWord);
-              this.finishWord = displayWord(parsed.finishWord);
-              this.currentWord = displayWord(parsed.currentWord);
-              this.history = (parsed.history || []).map((h: any) => ({ ...h, word: displayWord(h.word) }));
-              this.isGameOver = parsed.isGameOver;
-              this.score = parsed.score;
-              this.currentJourneyId = parsed.currentJourneyId || 'tutorial';
+              // Basic validation of required fields
+              if (parsed.startWord && parsed.finishWord && Array.isArray(parsed.history) && parsed.history.length > 0) {
+                  this.startWord = displayWord(parsed.startWord);
+                  this.finishWord = displayWord(parsed.finishWord);
+                  this.currentWord = displayWord(parsed.currentWord);
+                  this.history = parsed.history.map((h: any) => ({
+                      ...h,
+                      word: displayWord(h.word || '')
+                  })).filter((h: any) => h.word.length > 0);
+                  
+                  if (this.history.length === 0) return false;
+
+                  this.isGameOver = !!parsed.isGameOver;
+                  this.score = Number(parsed.score) || 0;
+                  this.currentJourneyId = parsed.currentJourneyId || 'tutorial';
+                  return true;
+              }
           }
-      } catch (e) { console.error('Failed to load game state', e); }
+      } catch (e) { 
+          console.error('Failed to load game state', e);
+          localStorage.removeItem(STATE_KEY);
+      }
+      return false;
+  }
+
+  private loadTutorial() {
+      this.startWord = 'COLD';
+      this.finishWord = 'WARM';
+      this.currentWord = 'COLD';
+      this.history = [{ type: 'origin', word: 'COLD', timestamp: Date.now(), obscurity: 0 }];
+      this.isGameOver = false;
+      this.score = 0;
+      this.currentJourneyId = 'tutorial';
   }
 
   private loadCompleted() {

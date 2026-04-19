@@ -70,7 +70,7 @@
   .track-line.is-end { @apply bottom-1/2; }
 
   .node-container {
-    @apply relative z-10 bg-slate-900 py-2 flex items-center justify-center w-full;
+    @apply relative z-10 bg-transparent py-2 flex items-center justify-center w-full;
   }
 
   .node {
