@@ -52,7 +52,23 @@
   <div class="controls-row">
     <div class="button-group">
       <Button variant="secondary" size="icon" onclick={onOpenLevels} tooltip="Choose Journey" disabled={game.isGenerating || game.isSolving} class="h-full"><span>🗺️</span></Button>
-      <HintControl showSolveConfirm={(cb) => confirmSolve(cb)} />
+      
+      {#if game.isGameOver}
+        <Button
+          variant="success"
+          onclick={() => {
+            shareResult(game);
+            showSharedToast = true;
+            setTimeout(() => showSharedToast = false, 3000);
+          }}
+          class="uppercase tracking-widest font-black italic px-8 animate-in zoom-in duration-500"
+        >
+          SHARE YOUR JOURNEY
+        </Button>
+      {:else}
+        <HintControl showSolveConfirm={(cb) => confirmSolve(cb)} />
+      {/if}
+
       <Button variant="secondary" size="icon" onclick={() => showHowTo = true} tooltip="How to Play" class="h-full"><span>❓</span></Button>
 
       
@@ -92,22 +108,7 @@
       <Button variant="secondary" size="icon" onclick={onOpenSettings} tooltip="Settings" disabled={game.isGenerating || game.isSolving} class="h-full"><span>⚙️</span></Button>
     </div>
     
-    <div class="score-display relative">
-      {#if game.isGameOver}
-          <div class="absolute right-full mr-4 whitespace-nowrap animate-in slide-in-from-right-4 duration-500">
-            <Button
-              variant="success"
-              onclick={() => {
-                shareResult(game);
-                showSharedToast = true;
-                setTimeout(() => showSharedToast = false, 3000);
-              }}
-              class="uppercase tracking-widest font-black italic shadow-xl shadow-emerald-900/20"
-            >
-              SHARE YOUR JOURNEY
-            </Button>
-          </div>
-      {/if}
+    <div class="score-display">
       <div class="score-value">{game.score}</div>
       <span class="trophy">🏆</span>
     </div>

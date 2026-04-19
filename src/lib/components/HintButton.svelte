@@ -48,10 +48,10 @@
 </script>
 
 <div class="hint-controls flex gap-2 items-center">
-  <Button variant="secondary" size="icon" onclick={onHint} loading={busy} disabled={game.isGenerating || game.isGameOver} aria-label="Get hint (Magic Wand)">
+  <Button variant="secondary" size="icon" onclick={onHint} loading={busy} disabled={game.isGenerating || game.isGameOver} tooltip="Get Hint" aria-label="Get hint (Magic Wand)">
     <span class="wand" aria-hidden="true">🪄</span>
   </Button>
-  <Button variant="secondary" size="icon" onclick={onSolve} loading={busy} disabled={game.isGenerating || game.isGameOver} aria-label="Reveal solution">
+  <Button variant="secondary" size="icon" onclick={onSolve} loading={busy} disabled={game.isGenerating || game.isGameOver} tooltip="Reveal Solution" aria-label="Reveal solution">
     <span class="unlock" aria-hidden="true">🔓</span>
   </Button>
 </div>
