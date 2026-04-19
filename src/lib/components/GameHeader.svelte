@@ -3,6 +3,7 @@
   import { shareResult } from '../social';
   import { getObscurityColor, getObscurityLabel } from '../word-utils';
   import Button from './Button.svelte';
+  import HowToPlay from './dialogs/HowToPlay.svelte';
 
   interface Props {
     onOpenLevels: () => void;
@@ -29,6 +30,7 @@
   const HintControl = HintButton;
 
   let showSharedToast = $state(false);
+  let showHowTo = $state(false);
 
   function confirmSolve(cb: () => void) {
     if (confirm('Reveal full solution? This cannot be undone for this run.')) cb();
@@ -49,6 +51,7 @@
       <Button variant="secondary" size="icon" onclick={onOpenLevels} tooltip="Choose Journey" disabled={game.isGenerating || game.isSolving} class="h-full"><span>🗺️</span></Button>
       <Button variant="secondary" size="icon" onclick={() => { game.suggestedByWand = true; onConfirmWand(); }} loading={game.isSolving} tooltip="Magic Path" disabled={game.isGenerating || game.isGameOver} class="h-full"><span>🪄</span></Button>
       <svelte:component this={HintControl} showSolveConfirm={(cb) => confirmSolve(cb)} />
+      <Button variant="secondary" size="icon" onclick={() => showHowTo = true} tooltip="How to Play" class="h-full"><span>❓</span></Button>
 
       
       <!-- make trigger keyboard accessible: use a button for the toggle and expose aria attributes -->
@@ -101,6 +104,7 @@
   </div>
 
   {#if showSharedToast}<div class="toast-shared animate-in slide-in-from-top-4 duration-300">Copied to Clipboard!</div>{/if}
+  <HowToPlay show={showHowTo} onClose={() => showHowTo = false} />
 </header>
 
 <style lang="postcss">
