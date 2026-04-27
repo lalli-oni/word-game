@@ -290,6 +290,7 @@ export class GameEngine {
   }
 
   loadJourney(journey: Journey) {
+      if (this.isSolving || this.#isApplyingMove) return;
       const start = displayWord(journey.startWord);
       this.startWord = start;
       this.finishWord = displayWord(journey.finishWord);
@@ -418,7 +419,29 @@ export class GameEngine {
       this.isSolving = false;
   }
 
+  async undoMove() {
+      if (this.history.length <= 1 || this.isSolving || this.#isApplyingMove) return;
+      this.#isApplyingMove = true;
+      
+      try {
+          const removedStep = this.history.pop();
+          if (!removedStep) return;
+
+          const lastStep = this.history[this.history.length - 1];
+          this.currentWord = lastStep.word;
+          this.score = Math.max(0, this.score - (removedStep.score || 0));
+          this.isGameOver = false;
+
+          this.invalidateCachedSolution();
+          await this.#refreshSemanticMoves(this.currentWord);
+          this.saveGameState();
+      } finally {
+          this.#isApplyingMove = false;
+      }
+  }
+
   reset() {
+      if (this.isSolving || this.#isApplyingMove) return;
       this.currentWord = this.startWord;
       this.history = [{ type: 'origin', word: this.startWord, timestamp: Date.now(), obscurity: 0 }];
       this.isGameOver = false;
@@ -426,6 +449,7 @@ export class GameEngine {
       this.#validSemanticMoves = { synonyms: [], antonyms: [] };
       this.#semanticMovesWord = null;
       this.#semanticMovesPromise = null;
+      this.invalidateCachedSolution();
       this.#refreshSemanticMoves(this.startWord);
       this.saveGameState();
   }
