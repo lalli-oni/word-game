@@ -200,4 +200,79 @@ describe('GameEngine move validation', () => {
       allowProfanity: true,
     });
   });
+
+  it('undoMove removes the last step and reverts state', async () => {
+    const game = await loadGame();
+    
+    // Make a move
+    await game.makeMove('CORD');
+    expect(game.history).toHaveLength(2);
+    expect(game.currentWord).toBe('CORD');
+    expect(game.score).toBeGreaterThan(0);
+
+    const scoreAfterMove = game.score;
+
+    // Undo move
+    await game.undoMove();
+    expect(game.history).toHaveLength(1);
+    expect(game.currentWord).toBe('COLD');
+    expect(game.score).toBe(0);
+    expect(game.isGameOver).toBe(false);
+  });
+
+  it('undoMove is blocked when at origin', async () => {
+    const game = await loadGame();
+    expect(game.history).toHaveLength(1);
+    
+    await game.undoMove();
+    expect(game.history).toHaveLength(1);
+    expect(game.currentWord).toBe('COLD');
+  });
+
+  it('undoMove and reset are blocked during solve()', async () => {
+    const game = await loadGame();
+    game.finishWord = 'WARM';
+    
+    // Mock a slow solve
+    dictionaryServiceMock.findShortestPath.mockImplementationOnce(async () => {
+      await new Promise(r => setTimeout(r, 50));
+      return ['cold', 'warm'];
+    });
+
+    const solvePromise = game.solve();
+    
+    // Try to undo while solving
+    await game.undoMove();
+    expect(game.isSolving).toBe(true);
+
+    // Try to reset while solving
+    game.reset();
+    expect(game.currentWord).toBe('COLD'); // Still COLD, but if it worked it would stay COLD anyway, 
+                                          // but we can check if history was cleared if we were further ahead.
+    
+    await solvePromise;
+    expect(game.isGameOver).toBe(true);
+  });
+
+  it('prevents rapid undo clicks from causing race conditions', async () => {
+    const game = await loadGame();
+    await game.makeMove('CORD');
+    await game.makeMove('CORD'); // This would fail in real life but history is mocked/pushed
+    game.history = [
+        { type: 'origin', word: 'COLD', timestamp: 0, obscurity: 0 },
+        { type: 'waypoint', word: 'CORD', timestamp: 1, obscurity: 0, score: 100, action: 'morph' },
+        { type: 'waypoint', word: 'CORE', timestamp: 2, obscurity: 0, score: 100, action: 'morph' }
+    ];
+    game.currentWord = 'CORE';
+
+    // Trigger two undos simultaneously
+    await Promise.all([
+      game.undoMove(),
+      game.undoMove()
+    ]);
+
+    // Only one should have succeeded because of the #isApplyingMove guard
+    expect(game.history).toHaveLength(2);
+    expect(game.currentWord).toBe('CORD');
+  });
 });

@@ -10,6 +10,7 @@
     children?: any;
     tooltip?: string;
     active?: boolean;
+    'aria-label'?: string;
   };
 
   let { 
@@ -22,7 +23,8 @@
     class: className = '', 
     children,
     tooltip,
-    active = false
+    active = false,
+    'aria-label': ariaLabel
   }: Props = $props();
 
   const variants = {
@@ -48,6 +50,7 @@
     <button 
       {onclick} 
       {title}
+      aria-label={ariaLabel}
       disabled={disabled || loading}
       class="font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 {variants[variant]} {sizes[size]} {active ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''}"
       onmouseenter={() => showTooltip = true}

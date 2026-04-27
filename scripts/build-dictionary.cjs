@@ -45,12 +45,17 @@ function simplePlural(word) {
 }
 
 async function build() {
-    console.log('Building dictionary from WordNet DB files...');
+    console.time('Build Duration');
+    console.log('Building dictionary from WordNet DB files (with exceptions)...');
     
-    const dictPath = path.join(__dirname, '../node_modules/wordnet-db/dict');
+    const dictPath = path.join(__dirname, '../node_modules/wndb-with-exceptions/dict');
     const indexFiles = ['index.adj', 'index.adv', 'index.noun', 'index.verb'];
+    const excFiles = ['adj.exc', 'adv.exc', 'noun.exc', 'verb.exc'];
+    
     const allLemmas = new Set();
+    const exceptions = {}; // irregular -> lemma
 
+    // 1. Load basic lemmas
     for (const file of indexFiles) {
         console.log(`Reading ${file}...`);
         const filePath = path.join(dictPath, file);
@@ -66,8 +71,26 @@ async function build() {
         });
     }
 
+    // 2. Load exceptions (irregular forms)
+    for (const file of excFiles) {
+        console.log(`Reading ${file}...`);
+        const filePath = path.join(dictPath, file);
+        const content = fs.readFileSync(filePath, 'utf8');
+        const lines = content.split('\n');
+        lines.forEach(line => {
+            const parts = line.split(' ').filter(Boolean);
+            if (parts.length >= 2) {
+                const irregular = parts[0].toLowerCase();
+                const lemma = parts[1].toLowerCase();
+                if (irregular.length >= 2 && !irregular.includes('_') && !irregular.includes('-')) {
+                    exceptions[irregular] = lemma;
+                }
+            }
+        });
+    }
+
     const lemmas = Array.from(allLemmas);
-    console.log(`Extracted ${lemmas.length} unique lemmas. Processing relations...`);
+    console.log(`Extracted ${lemmas.length} unique lemmas and ${Object.keys(exceptions).length} exceptions. Processing relations...`);
 
     const batchSize = 500;
     for (let i = 0; i < lemmas.length; i += batchSize) {
@@ -131,6 +154,20 @@ async function build() {
         }));
         if (i % 5000 === 0) console.log(`Processed ${i} / ${lemmas.length} words...`);
     }
+
+    // 3. Add irregular forms to dictionary
+    console.log('Integrating irregular forms...');
+    Object.entries(exceptions).forEach(([irregular, lemma]) => {
+        if (!dictionary[irregular] && dictionary[lemma]) {
+            dictionary[irregular] = {
+                synonyms: [...dictionary[lemma].synonyms],
+                antonyms: [...dictionary[lemma].antonyms],
+                tags: [...dictionary[lemma].tags],
+                rank: wordRanks[irregular] || Math.min(dictionary[lemma].rank + 2000, DEFAULT_RANK),
+                isPriority: priorityWords.has(irregular)
+            };
+        }
+    });
 
     // Ensure reciprocal relationships
     console.log('Ensuring reciprocal relationships...');
@@ -197,6 +234,7 @@ async function build() {
     fs.writeFileSync(path.join(__dirname, '../public/dictionary.json'), dictionaryContent);
     fs.writeFileSync(path.join(__dirname, '../public/dictionary.hash'), hash);
     console.log(`\nSuccess! Dictionary built. Hash: ${hash}`);
+    console.timeEnd('Build Duration');
 }
 
 build();

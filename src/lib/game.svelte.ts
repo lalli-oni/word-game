@@ -32,6 +32,8 @@ export interface GameAPI {
     score: number;
     isSolving: boolean;
     isGenerating: boolean;
+    suggestedByWand: boolean;
+    wasModified: boolean;
     currentJourneyId: string;
     completedJourneys: Record<string, JourneyResult>;
     
@@ -83,6 +85,7 @@ export class GameEngine {
   suggestedWord = $state<string | null>(null);
   toastMessage = $state('');
   suggestedByWand = $state(false);
+  wasModified = $state(false);
 
   // Stats
   completedJourneys = $state<Record<string, JourneyResult>>({});
@@ -298,6 +301,7 @@ export class GameEngine {
       this.history = [{ type: 'origin', word: start, timestamp: Date.now(), obscurity: 0 }];
       this.isGameOver = false;
       this.score = 0;
+      this.wasModified = false;
       this.currentJourneyId = journey.id;
       this.#validSemanticMoves = { synonyms: [], antonyms: [] };
       this.#semanticMovesWord = null;
@@ -429,9 +433,10 @@ export class GameEngine {
 
           const lastStep = this.history[this.history.length - 1];
           this.currentWord = lastStep.word;
-          this.score = Math.max(0, this.score - (removedStep.score || 0));
+          const stepScore = (removedStep.type === 'waypoint' || removedStep.type === 'destination') ? (removedStep.score || 0) : 0;
+          this.score = Math.max(0, this.score - stepScore);
           this.isGameOver = false;
-
+          this.wasModified = true;
           this.invalidateCachedSolution();
           await this.#refreshSemanticMoves(this.currentWord);
           this.saveGameState();
@@ -446,6 +451,7 @@ export class GameEngine {
       this.history = [{ type: 'origin', word: this.startWord, timestamp: Date.now(), obscurity: 0 }];
       this.isGameOver = false;
       this.score = 0;
+      this.wasModified = true;
       this.#validSemanticMoves = { synonyms: [], antonyms: [] };
       this.#semanticMovesWord = null;
       this.#semanticMovesPromise = null;

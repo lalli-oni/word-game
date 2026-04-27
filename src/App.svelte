@@ -194,19 +194,18 @@ onConfirmNewJourney={() => confirmAction('Abandon Journey?', 'Start a new myster
                 {/snippet}
                 {#snippet sideInfo()}
                     {#if step.type === 'origin'}
-                        <Tooltip title="Reset Journey">
-                            {#snippet children()}
-                                <button 
-                                    onclick={() => confirmAction('Reset Journey?', 'This will clear all moves and start over from the beginning.', 'RESET', 'CANCEL', () => game.reset())}
-                                    class="action-icon-btn text-slate-500 hover:text-white"
-                                    disabled={game.history.length <= 1 || game.isSolving}
-                                    aria-label="Reset Journey"
-                                >
-                                    🔄
-                                </button>
-                            {/snippet}
-                        </Tooltip>
-                    {:else if step.type !== 'origin' && step.score !== undefined}
+                        <Button 
+                            variant="secondary" 
+                            size="icon"
+                            onclick={() => confirmAction('Reset Journey?', 'This will clear all moves and start over from the beginning.', 'RESET', 'CANCEL', () => game.reset())}
+                            disabled={game.history.length <= 1 || game.isSolving}
+                            tooltip="Reset Journey"
+                            aria-label="Reset Journey"
+                            class="scale-75"
+                        >
+                            <span>⏮️</span>
+                        </Button>
+                    {:else if step.score !== undefined}
                         <Tooltip title="Score Breakdown">
                             {#snippet children()}<span class="score-pill">+{step.score}</span>{/snippet}
                             {#snippet content()}
@@ -223,8 +222,6 @@ onConfirmNewJourney={() => confirmAction('Abandon Journey?', 'Start a new myster
                                 </div>
                             {/snippet}
                         </Tooltip>
-                    {:else if step.type === 'origin'}
-                        <span class="score-pill text-slate-400">+0</span>
                     {/if}
                 {/snippet}
             </PathStep>
@@ -247,18 +244,17 @@ onConfirmNewJourney={() => confirmAction('Abandon Journey?', 'Start a new myster
                     />
                 {/snippet}
                 {#snippet sideInfo()}
-                    <Tooltip title="Undo Move">
-                        {#snippet children()}
-                            <button 
-                                onclick={handleUndo}
-                                class="action-icon-btn text-slate-500 hover:text-white"
-                                disabled={game.history.length <= 1 || game.isSolving}
-                                aria-label="Undo Move"
-                            >
-                                ⎌
-                            </button>
-                        {/snippet}
-                    </Tooltip>
+                    <Button 
+                        variant="secondary" 
+                        size="icon"
+                        onclick={() => confirmAction('Undo last move?', 'This will remove your last word and reduce your score.', 'UNDO', 'CANCEL', handleUndo)}
+                        disabled={game.history.length <= 1 || game.isSolving}
+                        tooltip="Undo Move"
+                        aria-label="Undo Move"
+                        class="scale-75"
+                    >
+                        <span>◀️</span>
+                    </Button>
                 {/snippet}
             </PathStep>
             {#if activeErrors.length > 0}
