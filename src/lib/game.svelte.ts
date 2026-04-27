@@ -290,6 +290,7 @@ export class GameEngine {
   }
 
   loadJourney(journey: Journey) {
+      if (this.isSolving || this.#isApplyingMove) return;
       const start = displayWord(journey.startWord);
       this.startWord = start;
       this.finishWord = displayWord(journey.finishWord);
@@ -440,7 +441,7 @@ export class GameEngine {
   }
 
   reset() {
-      if (this.isSolving) return;
+      if (this.isSolving || this.#isApplyingMove) return;
       this.currentWord = this.startWord;
       this.history = [{ type: 'origin', word: this.startWord, timestamp: Date.now(), obscurity: 0 }];
       this.isGameOver = false;
