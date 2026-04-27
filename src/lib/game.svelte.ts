@@ -393,32 +393,24 @@ export class GameEngine {
       }
   }
 
-  async solve() {
-      if (this.isGameOver || this.isSolving) return;
-      this.isSolving = true;
-
-      console.time('[Solver] Dijkstra');
-      const path = await dictionaryService.findShortestPath(this.currentWord, this.finishWord, 10, {
-          allowProfanity: this.#allowProfanity,
-          usedWords: this.history.map(step => step.word)
-      });
-      console.timeEnd('[Solver] Dijkstra');
-
-      if (!path) {
-          console.error('[Solver] No path found!');
-          this.isSolving = false;
-          return;
-      }
-
-      for (let i = 1; i < path.length; i++) {
-          await new Promise(r => setTimeout(r, 400));
-          await this.makeMove(path[i]);
-      }
+  async undoMove() {
+      if (this.history.length <= 1 || this.isSolving) return;
       
-      this.isSolving = false;
+      const removedStep = this.history.pop();
+      if (!removedStep) return;
+
+      const lastStep = this.history[this.history.length - 1];
+      this.currentWord = lastStep.word;
+      this.score = Math.max(0, this.score - (removedStep.score || 0));
+      this.isGameOver = false;
+
+      this.invalidateCachedSolution();
+      await this.#refreshSemanticMoves(this.currentWord);
+      this.saveGameState();
   }
 
   reset() {
+      if (this.isSolving) return;
       this.currentWord = this.startWord;
       this.history = [{ type: 'origin', word: this.startWord, timestamp: Date.now(), obscurity: 0 }];
       this.isGameOver = false;
@@ -426,6 +418,7 @@ export class GameEngine {
       this.#validSemanticMoves = { synonyms: [], antonyms: [] };
       this.#semanticMovesWord = null;
       this.#semanticMovesPromise = null;
+      this.invalidateCachedSolution();
       this.#refreshSemanticMoves(this.startWord);
       this.saveGameState();
   }
