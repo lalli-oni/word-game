@@ -393,20 +393,50 @@ export class GameEngine {
       }
   }
 
-  async undoMove() {
-      if (this.history.length <= 1 || this.isSolving) return;
+  async solve() {
+      if (this.isGameOver || this.isSolving) return;
+      this.isSolving = true;
+
+      console.time('[Solver] Dijkstra');
+      const path = await dictionaryService.findShortestPath(this.currentWord, this.finishWord, 10, {
+          allowProfanity: this.#allowProfanity,
+          usedWords: this.history.map(step => step.word)
+      });
+      console.timeEnd('[Solver] Dijkstra');
+
+      if (!path) {
+          console.error('[Solver] No path found!');
+          this.isSolving = false;
+          return;
+      }
+
+      for (let i = 1; i < path.length; i++) {
+          await new Promise(r => setTimeout(r, 400));
+          await this.makeMove(path[i]);
+      }
       
-      const removedStep = this.history.pop();
-      if (!removedStep) return;
+      this.isSolving = false;
+  }
 
-      const lastStep = this.history[this.history.length - 1];
-      this.currentWord = lastStep.word;
-      this.score = Math.max(0, this.score - (removedStep.score || 0));
-      this.isGameOver = false;
+  async undoMove() {
+      if (this.history.length <= 1 || this.isSolving || this.#isApplyingMove) return;
+      this.#isApplyingMove = true;
+      
+      try {
+          const removedStep = this.history.pop();
+          if (!removedStep) return;
 
-      this.invalidateCachedSolution();
-      await this.#refreshSemanticMoves(this.currentWord);
-      this.saveGameState();
+          const lastStep = this.history[this.history.length - 1];
+          this.currentWord = lastStep.word;
+          this.score = Math.max(0, this.score - (removedStep.score || 0));
+          this.isGameOver = false;
+
+          this.invalidateCachedSolution();
+          await this.#refreshSemanticMoves(this.currentWord);
+          this.saveGameState();
+      } finally {
+          this.#isApplyingMove = false;
+      }
   }
 
   reset() {
