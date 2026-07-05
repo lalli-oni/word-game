@@ -6,6 +6,8 @@
   import { shareResult } from '../social';
   import { getObscurityColor, getObscurityLabel } from '../word-utils';
   import Button from './Button.svelte';
+  import Spinner from './Spinner.svelte';
+  import { BUTTON_VARIANT_COLORS } from './button-variants';
 
   interface Props {
     onOpenLevels: () => void;
@@ -42,19 +44,20 @@
   </div>
 
   <div class="controls-row">
-    <div class="button-group">
-      <Button variant="secondary" size="icon" onclick={onOpenLevels} tooltip="Choose Journey" disabled={game.isGenerating || game.isSolving} class="h-full"><span>🗺️</span></Button>
+    <div class="header-controls">
+      <Button variant="secondary" size="icon" fill onclick={onOpenLevels} tooltip="Choose Journey" disabled={game.isGenerating || game.isSolving}><span>🗺️</span></Button>
       
       <div class="hint-share-slot">
         {#if game.isGameOver}
           <Button
             variant="success"
+            fill
             onclick={() => {
               shareResult(game);
               showSharedToast = true;
               setTimeout(() => showSharedToast = false, 3000);
             }}
-            class="animate-in zoom-in duration-500 w-full h-full"
+            class="animate-in zoom-in duration-500"
           >
             SHARE
           </Button>
@@ -66,9 +69,9 @@
       <!-- make trigger keyboard accessible: use a button for the toggle and expose aria attributes -->
       <div class="random-config-wrapper group">
           <div class="random-trigger" class:is-expanded={showRandomConfig}>
-              <button onclick={onConfirmNewJourney} disabled={game.isGenerating || game.isSolving} class="random-btn" aria-haspopup="true" aria-expanded={showRandomConfig} title="Start Random Journey">
+              <button onclick={onConfirmNewJourney} disabled={game.isGenerating || game.isSolving} class="random-btn {BUTTON_VARIANT_COLORS.primary}" aria-haspopup="true" aria-expanded={showRandomConfig} title="Start Random Journey">
                 {#if game.isGenerating}
-                  <svg class="spinner" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  <Spinner size="sm" class="text-white" />
                 {:else}
                   <span class="dice-icon">🎲</span><span class="word-len">{game.randomWordLength}</span>
                 {/if}
@@ -96,7 +99,7 @@
             </div>
           {/if}
       </div>
-      <Button variant="secondary" size="icon" onclick={onOpenSettings} tooltip="Settings" disabled={game.isGenerating || game.isSolving} class="h-full"><span>⚙️</span></Button>
+      <Button variant="secondary" size="icon" fill onclick={onOpenSettings} tooltip="Settings" disabled={game.isGenerating || game.isSolving}><span>⚙️</span></Button>
     </div>
     
     <div class="score-display flex-shrink-0">
@@ -136,10 +139,10 @@
   }
 
   .controls-row {
-    @apply flex justify-between items-center px-4 h-[52px];
+    @apply flex justify-between items-center px-4 h-[var(--spacing-control)];
   }
 
-  .button-group {
+  .header-controls {
     @apply flex gap-2 h-full items-center;
   }
 
@@ -156,7 +159,7 @@
   }
 
   .random-btn {
-    @apply flex items-center gap-2 text-xs font-black bg-blue-600 hover:bg-blue-500 h-full px-4 transition-all active:scale-95 leading-none border-r border-blue-700 shrink-0 text-white disabled:opacity-50;
+    @apply flex items-center gap-2 text-xs font-black h-full px-4 transition-all active:scale-95 leading-none border-r border-blue-700 shrink-0 disabled:opacity-50;
   }
 
   .chevron-box {
@@ -172,7 +175,7 @@
   }
 
   .dropdown-panel {
-    @apply absolute top-[48px] left-0 right-0 p-6 pt-10 bg-slate-800 border-2 border-t-0 border-slate-700 rounded-b-[2rem] shadow-2xl z-10 w-64 origin-top backdrop-blur-md;
+    @apply absolute top-[calc(var(--spacing-control)-4px)] left-0 right-0 p-6 pt-10 bg-slate-800 border-2 border-t-0 border-slate-700 rounded-b-[2rem] shadow-2xl z-10 w-64 origin-top backdrop-blur-md;
   }
 
   .slider-group {
@@ -207,7 +210,4 @@
     @apply text-3xl filter drop-shadow-lg;
   }
 
-  .spinner {
-    @apply animate-spin h-4 w-4;
-  }
 </style>

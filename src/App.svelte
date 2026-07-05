@@ -196,18 +196,17 @@ onConfirmNewJourney={() => confirmAction('Abandon Journey?', 'Start a new myster
                     {#if step.type === 'origin'}
                         <Button 
                             variant="secondary" 
-                            size="icon"
+                            size="icon-sm"
                             onclick={() => confirmAction('Reset Journey?', 'This will clear all moves and start over from the beginning.', 'RESET', 'CANCEL', () => game.reset())}
                             disabled={game.history.length <= 1 || game.isSolving}
                             tooltip="Reset Journey"
                             aria-label="Reset Journey"
-                            class="scale-75"
                         >
                             <span>⏮️</span>
                         </Button>
                     {:else if step.score !== undefined}
-                        <Tooltip title="Score Breakdown">
-                            {#snippet children()}<span class="score-pill">+{step.score}</span>{/snippet}
+                        <Tooltip title="Score Breakdown" class="w-full flex justify-center">
+                            {#snippet children()}<span class="score-pill block w-full text-center">+{step.score}</span>{/snippet}
                             {#snippet content()}
                                 <div class="score-breakdown">
                                     <div class="breakdown-row">
@@ -246,12 +245,11 @@ onConfirmNewJourney={() => confirmAction('Abandon Journey?', 'Start a new myster
                 {#snippet sideInfo()}
                     <Button 
                         variant="secondary" 
-                        size="icon"
+                        size="icon-sm"
                         onclick={() => confirmAction('Undo last move?', 'This will remove your last word and reduce your score.', 'UNDO', 'CANCEL', handleUndo)}
                         disabled={game.history.length <= 1 || game.isSolving}
                         tooltip="Undo Move"
                         aria-label="Undo Move"
-                        class="scale-75"
                     >
                         <span>◀️</span>
                     </Button>

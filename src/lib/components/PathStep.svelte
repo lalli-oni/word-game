@@ -102,6 +102,6 @@
   }
 
   .side-info {
-    @apply w-12 flex items-center justify-end pr-2 text-slate-500 font-black font-mono text-sm;
+    @apply w-12 flex items-center justify-center text-slate-500 font-black font-mono text-sm;
   }
 </style>
